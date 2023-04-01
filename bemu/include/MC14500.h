@@ -81,6 +81,7 @@ struct OPTIONS {
     uint16_t rrDeviceAddress;
     uint8_t bindResultsRegister;
     struct PIN_HANDLES pinHandles;
+    uint16_t pcInitAddress;
 
     uint8_t enableDebugger;
 };

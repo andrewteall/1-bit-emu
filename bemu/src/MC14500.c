@@ -50,6 +50,7 @@ void printUsage(){
 	printf("-io N,         --io-count                   Sets the number of io address available to the system. Default 15.\n");
 	printf("-ip N,         --instruction-position N     Sets the position of the instruction within the memory from the MSB. Default: 0\n");
 	printf("-iw N,         --instruction-width N        Set the width in bits of the instruction. Default: 4\n");
+	printf("-pc N,         --program-counter N          Set the Program Counter to an initial address other than 0. Default: 0\n");
 	printf(" -r N,         --rom-size N                 Set the size of the Program ROM in bytes. Default: 255\n");
     printf(" -s,           --split-file                 Makes two seperate files one with Opcodes and one with Operands.\n");
     printf(" -v N, 	       --v[vvvv]                    Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
@@ -496,6 +497,8 @@ void setDefaultOptions(struct OPTIONS* sOptions){
     sOptions->pinHandles.rtnPinHandler = NONE;
     sOptions->pinHandles.flagFPinHandler = NONE;
     sOptions->pinHandles.flagOPinHandler = NONE;
+
+	sOptions->pcInitAddress = -1;
 }
 
 int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
@@ -656,6 +659,16 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 			} else {
 				ulog(INFO,"Binding Results Register to Address: %i",sOptions->rrDeviceAddress);
 			}
+		}
+
+		// -pc --program-counter
+		if (!strcmp(argv[i],"-pc") || !strcmp(argv[i],"--program-counter")){
+			sOptions->pcInitAddress = str2num(argv[i+1])-1;
+			if ( sOptions->pcInitAddress == 65534){
+				ulog(FATAL,"Unsupported Program Counter value. Must be a number.");
+				return 1;
+			}
+			ulog(INFO,"Setting Program Counter to %i",str2num(argv[i+1])+1);
 		}
 
 		// -d --debug

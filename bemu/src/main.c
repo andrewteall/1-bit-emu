@@ -20,7 +20,7 @@ int main(int argc, char* argv[]){
         /*********************************************************************/
         /********************** Setup Program Counter ************************/
         // Setup Program Counter 
-        uint16_t pc = -1;   // Makes the code slightly more readable later
+        uint16_t pc = sOptions.pcInitAddress;
         /*********************************************************************/
 
         /*********************************************************************/
