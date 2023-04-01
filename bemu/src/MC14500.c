@@ -50,6 +50,7 @@ void printUsage(){
 	printf("-io N,         --io-count                   Sets the number of io address available to the system. Default 15.\n");
 	printf("-ip N,         --instruction-position N     Sets the position of the instruction within the memory from the MSB. Default: 0\n");
 	printf("-iw N,         --instruction-width N        Set the width in bits of the instruction. Default: 4\n");
+	printf(" -p,           --print-state                Prints system status after each instruction. Does not work if --debug is set.\n");
 	printf("-pc N,         --program-counter N          Set the Program Counter to an initial address other than 0. Default: 0\n");
 	printf(" -r N,         --rom-size N                 Set the size of the Program ROM in bytes. Default: 255\n");
     printf(" -s,           --split-file                 Makes two seperate files one with Opcodes and one with Operands.\n");
@@ -65,8 +66,8 @@ void printUsage(){
  * @param icu A pointer to a MC14500 struct to obtain information.
  */
 void printSystemInfo(uint16_t pc, uint32_t address, struct MC14500* icu){
-	ulog(DEBUG,"PC = 0x%02x  Inst = % 4s  Addr = 0x%02x  RR = %i  IEN/OEN = %i/%i  " \
-					"Write: %i  Data: %i  Skip Next: %i  JROF: %i%i%i%i",
+	printf("PC = 0x%02x  Inst = %4s  Addr = 0x%02x  RR = %i  IEN/OEN = %i/%i  " \
+					"Write: %i  Data: %i  Skip Next: %i  JROF: %i%i%i%i\n",
                     pc,mnenomicStrings[icu->instruction],address,icu->logicUnit,icu->ienRegister,icu->oenRegister, \
                     icu->writePin,icu->dataPin,icu->skipRegister,icu->jmpPin,icu->rtnPin,icu->flagOPin,icu->flagFPin);
 }
@@ -499,6 +500,7 @@ void setDefaultOptions(struct OPTIONS* sOptions){
     sOptions->pinHandles.flagOPinHandler = NONE;
 
 	sOptions->pcInitAddress = -1;
+	sOptions->printState = 0;
 }
 
 int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
@@ -669,6 +671,12 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 				return 1;
 			}
 			ulog(INFO,"Setting Program Counter to %i",str2num(argv[i+1])+1);
+		}
+
+		// -p --print-state
+		if (!strcmp(argv[i],"-p") || !strcmp(argv[i],"--print-state")){
+			sOptions->printState = 1;
+			ulog(INFO,"Printing System State");
 		}
 
 		// -d --debug

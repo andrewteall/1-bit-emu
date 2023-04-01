@@ -74,8 +74,9 @@ int main(int argc, char* argv[]){
             
             if(sOptions.enableDebugger){
                 printf("\033c");
-            } else {
-                printSystemInfo(pc, address, &icu); // System info only prints when LOGLEVEL=DEBUG
+            }
+            if(sOptions.printState && !sOptions.enableDebugger){
+                printSystemInfo(pc, address, &icu);
             }
             
             // User Defined Pin Handling

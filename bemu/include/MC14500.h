@@ -82,6 +82,7 @@ struct OPTIONS {
     uint8_t bindResultsRegister;
     struct PIN_HANDLES pinHandles;
     uint16_t pcInitAddress;
+    int printState;
 
     uint8_t enableDebugger;
 };
