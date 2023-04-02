@@ -67,10 +67,14 @@ int main(int argc, char* argv[]){
             fetch(&icu, programROM[pc], &sOptions);     // icu "fetch"
             address = decodeAddress(programROM[pc], &sOptions);    // "Latch" Address for IODevice
             
-            // Execute - Clock Down 
-            latchIODeviceValueToDataPin(&icu.dataPin,deviceList[address].value); // Latch device at address to Data Pin
+            // Execute - Clock Down
+            if(sOptions.ioDeviceCount > address){
+                latchIODeviceValueToDataPin(&icu.dataPin,deviceList[address].value); // Latch device at address to Data Pin
+            }
             execute(&icu);                                                       // icu "execute"
-            latchDataPinToIODevice(deviceList[address].value,&icu.dataPin,icu.writePin); // Latch Data Pin out to device
+            if(sOptions.ioDeviceCount > address){
+                latchDataPinToIODevice(deviceList[address].value,&icu.dataPin,icu.writePin); // Latch Data Pin out to device
+            }
             
             if(sOptions.enableDebugger){
                 printf("\033c");

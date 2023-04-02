@@ -670,7 +670,7 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 				ulog(FATAL,"Unsupported Program Counter value. Must be a number.");
 				return 1;
 			}
-			ulog(INFO,"Setting Program Counter to %i",str2num(argv[i+1])+1);
+			ulog(INFO,"Setting Program Counter to %i",sOptions->pcInitAddress+1);
 		}
 
 		// -p --print-state
