@@ -17,23 +17,10 @@ void clearUserPins(struct MC14500 *icu){
     icu->rtnPin = 0;
 }
 
-void initICU(struct MC14500 *icu, struct PIN_HANDLES* pinHandles){
+void initICU(struct MC14500 *icu){
 	resetICU(icu);
 	icu->status = STOPPED;
     icu->resultsRegisterPin = &icu->resultsRegister;
-
-	if(pinHandles->jmpPinHandler>0 && pinHandles->jmpPinHandler<6){
-		pinHandles->jmpPinPtr = &icu->jmpPin;
-	}
-	if(pinHandles->rtnPinHandler>0 && pinHandles->rtnPinHandler<6){
-		pinHandles->rtnPinPtr = &icu->rtnPin;
-	}
-	if(pinHandles->flagFPinHandler>0 && pinHandles->flagFPinHandler<6){
-		pinHandles->flagFPinPtr = &icu->flagFPin;
-	}
-	if(pinHandles->flagOPinHandler>0 && pinHandles->flagOPinHandler<6){
-		pinHandles->flagOPinPtr = &icu->flagOPin;
-	}
 }
 
 void startICU(struct MC14500* icu){
@@ -61,10 +48,10 @@ void resetICU(struct MC14500 *icu){
     icu->logicUnit = 0;
 }
 
-void fetch(struct MC14500* icu, enum instructions instruction, uint16_t pc){	
-	icu->resultsRegister = icu->logicUnit;            					// Latch Results Register
-	icu->writePin = 0;                            						// Half Cycle Clear write pin
-	icu->instruction = instruction;   	 								// "Latch" instruction to ICU						
+void fetch(struct MC14500* icu, enum instructions instruction){
+	icu->instruction = instruction;   	 	// Latch instruction to ICU
+	icu->resultsRegister = icu->logicUnit;  // Latch Results Register
+	icu->writePin = 0;                      // Half Cycle Clear write pin					
 }
 
 void execute(struct MC14500 *icu){
@@ -72,4 +59,3 @@ void execute(struct MC14500 *icu){
 	icu->instruction *= !icu->skipRegister;
     (*instructionList[icu->instruction])(icu);
 }
-

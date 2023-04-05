@@ -14,11 +14,7 @@
 #endif
 
 enum pinActions {NONE,JUMP,JSR,RET,JSRS,RETS,HLT,RES,};
-const char* pinActionsStrings[17];
-
-
-
-
+const char* pinActionsStrings[9];
 
 /**
  * @brief Determines if a User Pin is high and then executes the defined 
@@ -34,6 +30,8 @@ const char* pinActionsStrings[17];
  */
 uint8_t pinHandler(struct MC14500* icu,uint32_t* stack, uint8_t* sp, uint16_t* pc, \
                         struct OPTIONS* sOptions, uint32_t address);
+
+void setPinHandlers(struct PIN_HANDLES* pinHandles,uint8_t* jmpPin,uint8_t* rtnPin,uint8_t* flagOPin,uint8_t* flagFPin);
 
 /**
  * @brief Determines the amount to increment to Program Counter by based on the
@@ -73,4 +71,5 @@ uint32_t decodeAddress(uint32_t programROMValue, struct OPTIONS* sOptions);
 
 
 uint32_t readWordFromROM(uint32_t* programROM, uint16_t pc, struct OPTIONS* sOptions);
+
 #endif

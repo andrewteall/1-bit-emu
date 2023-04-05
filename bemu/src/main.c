@@ -27,7 +27,9 @@ int main(int argc, char* argv[]){
         /*********************************************************************/
         /*************************** Setup ICU *******************************/
         struct MC14500 icu;
-        initICU(&icu,&sOptions.pinHandles);
+        initICU(&icu);
+        setPinHandlers(&sOptions.pinHandles, &icu.jmpPin, &icu.rtnPin, \
+                                                &icu.flagOPin,&icu.flagFPin);
         /*********************************************************************/
 
         /*********************************************************************/
@@ -75,7 +77,7 @@ int main(int argc, char* argv[]){
             programROMValue = readWordFromROM(programROM,pc,&sOptions);
             address = decodeAddress(programROMValue,&sOptions);
             instruction = decodeInstruction(programROMValue, &sOptions);
-            fetch(&icu, instruction, pc);               // icu "fetch"
+            fetch(&icu, instruction);               // icu "fetch"
               
             // Execute - Clock Down
             latchIODeviceValueToDataPin(deviceList,address,&icu.dataPin,sOptions.ioDeviceCount); // Latch device at address to Data Pin

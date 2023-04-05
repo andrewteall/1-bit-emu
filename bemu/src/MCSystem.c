@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <string.h>
 
 #include "MCSystem.h"
 #include "../../ulog/include/ulog.h"
@@ -124,6 +123,20 @@ uint8_t pinHandler(struct MC14500* icu,uint32_t* stack, uint8_t* sp, uint16_t* p
 	return error;
 }
 
+void setPinHandlers(struct PIN_HANDLES* pinHandles,uint8_t* jmpPin,uint8_t* rtnPin,uint8_t* flagOPin,uint8_t* flagFPin){
+    if(pinHandles->jmpPinHandler>0 && pinHandles->jmpPinHandler<6){
+		pinHandles->jmpPinPtr = jmpPin;
+	}
+	if(pinHandles->rtnPinHandler>0 && pinHandles->rtnPinHandler<6){
+		pinHandles->rtnPinPtr = rtnPin;
+	}
+	if(pinHandles->flagFPinHandler>0 && pinHandles->flagFPinHandler<6){
+		pinHandles->flagFPinPtr = flagFPin;
+	}
+	if(pinHandles->flagOPinHandler>0 && pinHandles->flagOPinHandler<6){
+		pinHandles->flagOPinPtr = flagOPin;
+	}
+}
 
 /*****************************************************************************/
 /*********************************** ROM *************************************/
@@ -181,7 +194,6 @@ uint32_t readWordFromROM(uint32_t* programROM, uint16_t pc, struct OPTIONS* sOpt
 	return wordValue;
 }
 
-
 uint32_t decodeInstruction(uint32_t programROMValue, struct OPTIONS* sOptions){
 	uint32_t instructionShift = (sOptions->wordWidth*8)-sOptions->instructionWidth-sOptions->instructionPosition;
 	uint32_t instructionMask = (expo(2,sOptions->instructionWidth)-1) << instructionShift;
@@ -195,7 +207,6 @@ uint32_t decodeAddress(uint32_t programROMValue, struct OPTIONS* sOptions){
 	
 	return (programROMValue & addressMask) >> addressShift;
 }
-
 
 
 /*****************************************************************************/

@@ -44,23 +44,6 @@ struct MC14500 {
     uint8_t* resultsRegisterPin;  
 };
 
-/**
- * @struct PIN_HANDLES
- * @brief This structure contains all User Pin Handler selectors and the User 
- *        Pin pointers.
- */
-struct PIN_HANDLES {
-	uint8_t pinSink;
-    uint8_t* jmpPinPtr;
-    uint8_t* rtnPinPtr;
-    uint8_t* flagFPinPtr;
-    uint8_t* flagOPinPtr;
-
-    uint8_t jmpPinHandler;
-    uint8_t rtnPinHandler;
-    uint8_t flagFPinHandler;
-    uint8_t flagOPinHandler;
-};
 
 /**
  * @brief Initializes the referenced MC14500 struct. A resetICU is performed and
@@ -72,7 +55,7 @@ struct PIN_HANDLES {
  * @param sOptions A pointer to an OPTIONS struct that contains all the 
  *        configuration parameters for the system.
  */
-void initICU(struct MC14500 *icu, struct PIN_HANDLES* pinHandles);
+void initICU(struct MC14500 *icu);
 
 /**
  * @brief Sets the referenced MC14500 struct to the RUNNING status.
@@ -98,12 +81,10 @@ void resetICU(struct MC14500 *icu);
  *        Write Pin, and retrieves, decodes, and "latches" the instruction
  *        to be performed to the ICU.
  * @param icu A Pointer to the ICU to latch the instruction.
- * @param programROMValue The value read from ROM that contains the combination
+ * @param instruction enum from instructions
  *        Instruction and Address Data to be decoded.
- * @param sOptions A pointer to an OPTIONS struct that contains all the 
- *        configuration parameters for the system.
  */
-void fetch(struct MC14500* icu, enum instructions instruction, uint16_t pc);
+void fetch(struct MC14500* icu, enum instructions instruction);
 
 /**
  * @brief Performs the instruction that is "latched" to the referenced MC14500 

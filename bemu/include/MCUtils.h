@@ -16,6 +16,24 @@
 
 
 /**
+ * @struct PIN_HANDLES
+ * @brief This structure contains all User Pin Handler selectors and the User 
+ *        Pin pointers.
+ */
+struct PIN_HANDLES {
+	uint8_t pinSink;
+    uint8_t* jmpPinPtr;
+    uint8_t* rtnPinPtr;
+    uint8_t* flagFPinPtr;
+    uint8_t* flagOPinPtr;
+
+    uint8_t jmpPinHandler;
+    uint8_t rtnPinHandler;
+    uint8_t flagFPinHandler;
+    uint8_t flagOPinHandler;
+};
+
+/**
  * @struct OPTIONS
  * @brief This structure contains all the configuration parameters for a given
  *        system.
