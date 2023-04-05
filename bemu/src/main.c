@@ -1,7 +1,8 @@
-#include <stdio.h>
-
+#include "MCUtils.h"
+#include "MCSystem.h"
 #include "MC14500.h"
 #include "IODevice.h"
+#include "debugger.h"
 #include "../../ulog/include/ulog.h"
 
 int main(int argc, char* argv[]){
@@ -20,13 +21,13 @@ int main(int argc, char* argv[]){
         /*********************************************************************/
         /********************** Setup Program Counter ************************/
         // Setup Program Counter 
-        uint16_t pc = sOptions.pcInitAddress;
+        uint16_t pc = sOptions.pcInitAddress-sOptions.wordWidth;
         /*********************************************************************/
 
         /*********************************************************************/
         /*************************** Setup ICU *******************************/
         struct MC14500 icu;
-        initICU(&icu,&sOptions);
+        initICU(&icu,&sOptions.pinHandles);
         /*********************************************************************/
 
         /*********************************************************************/
@@ -51,7 +52,8 @@ int main(int argc, char* argv[]){
         initIODeviceList(deviceList,sOptions.ioDeviceCount);
 
         if (sOptions.bindResultsRegister){
-            bindResultRegisterPinToIOAddress(deviceList,sOptions.rrDeviceAddress,icu.resultsRegisterPin);
+            error += !error * \
+                bindResultRegisterPinToIOAddress(deviceList,sOptions.rrDeviceAddress,icu.resultsRegisterPin,sOptions.ioDeviceCount);
         }
         
         // struct IODevice ioDeviceList[0xF];
@@ -59,27 +61,30 @@ int main(int argc, char* argv[]){
         // struct IODevice outputDeviceList[0xF];
         /*********************************************************************/
         
+        if(sOptions.enableDebugger && !error){
+            error += !error * startDebugger(&sOptions);
+        }
+
         uint32_t address;
+        uint8_t instruction;
+        uint32_t programROMValue;
         startICU(&icu);
         while(icu.status == RUNNING && !error){
             // Fetch - Clock Up
-            pc += getPCIncrement(&sOptions.pinHandles); // 0 if we modify the PC outside of this line, 1 otherwise
-            fetch(&icu, programROM[pc], &sOptions);     // icu "fetch"
-            address = decodeAddress(programROM[pc], &sOptions);    // "Latch" Address for IODevice
-            
+            pc += getPCIncrement(&sOptions.pinHandles, sOptions.wordWidth); // 0 if we modify the PC outside of this line
+            programROMValue = readWordFromROM(programROM,pc,&sOptions);
+            address = decodeAddress(programROMValue,&sOptions);
+            instruction = decodeInstruction(programROMValue, &sOptions);
+            fetch(&icu, instruction, pc);               // icu "fetch"
+              
             // Execute - Clock Down
-            if(sOptions.ioDeviceCount > address){
-                latchIODeviceValueToDataPin(&icu.dataPin,deviceList[address].value); // Latch device at address to Data Pin
-            }
-            execute(&icu);                                                       // icu "execute"
-            if(sOptions.ioDeviceCount > address){
-                latchDataPinToIODevice(deviceList[address].value,&icu.dataPin,icu.writePin); // Latch Data Pin out to device
-            }
+            latchIODeviceValueToDataPin(deviceList,address,&icu.dataPin,sOptions.ioDeviceCount); // Latch device at address to Data Pin
+            execute(&icu); // icu "execute"
+            latchDataPinToIODevice(deviceList,address,&icu.dataPin,icu.writePin,sOptions.ioDeviceCount);// Latch Data Pin out to device
             
             if(sOptions.enableDebugger){
-                printf("\033c");
-            }
-            if(sOptions.printState && !sOptions.enableDebugger){
+                drawScreen(&sOptions,pc, address, &icu,deviceList,stack,&sp);
+            } else if(sOptions.printState){
                 printSystemInfo(pc, address, &icu);
             }
             
@@ -87,6 +92,10 @@ int main(int argc, char* argv[]){
             error += !error * pinHandler(&icu,stack,&sp,&pc,&sOptions,address);
 
             (pc >= sOptions.romSize) ? pc = 0 : 0; // Reset PC if we overflow the "ROM"
+        }
+
+        if(sOptions.enableDebugger){
+            stopDebugger();
         }
         return error;
     }

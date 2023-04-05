@@ -3,6 +3,9 @@
 
 #include <inttypes.h>
 
+enum instructions {NOPO,LD,LDC,AND,ANDC,OR,ORC,XNOR,STO,STOC,IEN,OEN,JMP,RTN,SKZ,NOPF,};
+const char* mnenomicStrings[16];
+
 /**
  * @brief Potential Status of the ICU:CREATED,STOPPED,SINGLE,RUNNING,DESTROYED.
 */
@@ -60,34 +63,6 @@ struct PIN_HANDLES {
 };
 
 /**
- * @struct OPTIONS
- * @brief This structure contains all the configuration parameters for a given
- *        system.
- */
-struct OPTIONS {
-	char *filename;
-    int romSize;
-    uint8_t stackSize;
-    uint8_t stackDir;
-    uint8_t stackWidth;
-	int endianess;
-	int instructionWidth;
-	int addressWidth;
-	int instructionPosition;
-	int addressPosition;
-	int splitFile;
-	int wordWidth;
-    uint16_t ioDeviceCount;
-    uint16_t rrDeviceAddress;
-    uint8_t bindResultsRegister;
-    struct PIN_HANDLES pinHandles;
-    uint16_t pcInitAddress;
-    int printState;
-
-    uint8_t enableDebugger;
-};
-
-/**
  * @brief Initializes the referenced MC14500 struct. A resetICU is performed and
  * the ICU is set to the STOPPED status. The ResultsRegisterPin is tied to the
  * ResultsRegister so their values are always equal. Pin Handler Pointers are
@@ -97,7 +72,7 @@ struct OPTIONS {
  * @param sOptions A pointer to an OPTIONS struct that contains all the 
  *        configuration parameters for the system.
  */
-void initICU(struct MC14500 *icu, struct OPTIONS* sOptions);
+void initICU(struct MC14500 *icu, struct PIN_HANDLES* pinHandles);
 
 /**
  * @brief Sets the referenced MC14500 struct to the RUNNING status.
@@ -128,7 +103,7 @@ void resetICU(struct MC14500 *icu);
  * @param sOptions A pointer to an OPTIONS struct that contains all the 
  *        configuration parameters for the system.
  */
-void fetch(struct MC14500* icu, uint32_t programROMValue, struct OPTIONS* sOptions);
+void fetch(struct MC14500* icu, enum instructions instruction, uint16_t pc);
 
 /**
  * @brief Performs the instruction that is "latched" to the referenced MC14500 
@@ -137,107 +112,5 @@ void fetch(struct MC14500* icu, uint32_t programROMValue, struct OPTIONS* sOptio
  */
 void execute(struct MC14500* icu);
 
-/**
- * @brief Decodes the Instruction based on configuration provided by the
- *        OPTIONS struct from the programROMValue.
- * @param programROMValue The value read from ROM that contains the combination
- *        Instruction and Address Data to be decoded.
- * @param sOptions A pointer to an OPTIONS struct that contains all the 
- *        configuration parameters for the system.
- * @returns uint32_t The value of the decoded Instruction.
- */
-uint32_t decodeInstruction(uint32_t programROMValue, struct OPTIONS* sOptions);
-
-/**
- * @brief Decodes the Address based on configuration provided by the
- *        OPTIONS struct from the programROMValue.
- * @param programROMValue The value read from ROM that contains the combination
- *        Instruction and Address Data to be decoded.
- * @param sOptions A pointer to an OPTIONS struct that contains all the 
- *        configuration parameters for the system.
- * @returns uint32_t The value of the decoded Address.
- */
-uint32_t decodeAddress(uint32_t programROMValue, struct OPTIONS* sOptions);
-
-/**
- * @brief Assigns the Value of the device at the specified address to the 
- *        Data Pin of the icu.
- * @param dataPin A Pointer to the data Pin if the ICU to revcieve the data.
- * @param deviceListValue A Pointer to the Device Value at the address we want
- *        to latch.
- */
-void latchIODeviceValueToDataPin(uint8_t* dataPin, uint8_t* deviceListValue);
-
-/**
- * @brief Assigns the Value of the Data Pin of the icu to the device at the 
- *        specified address only if the Write Pin is High.
- * @param deviceListValue A Pointer to the Device Value at the address we want
- *        to latch.
- * @param dataPin A Pointer to the Data Pin if the ICU to recieve the data.
- * @param writePin The value of the Write Pin if the ICU.
- * 
- */
-void latchDataPinToIODevice(uint8_t* deviceListValue, uint8_t* dataPin, uint8_t writePin);
-
-/**
- * @brief Determines if a User Pin is high and then executes the defined 
- *        function if there is one.
- * @param icu A pointer to the ICU for configuration.
- * @param stack A Pointer to the Stack,
- * @param sp Current Stack Pointer value.
- * @param pc Current Program Counter value.
- * @param sOptions A pointer to an OPTIONS struct that contains all the 
- *        configuration parameters for the system.
- * @param address The address operand of currently executing instruction.
- * @return uint8_t Returns a 0 is successful or a 1 if any failure occurs.
- */
-uint8_t pinHandler(struct MC14500* icu,uint32_t* stack, uint8_t* sp, uint16_t* pc, \
-                        struct OPTIONS* sOptions, uint32_t address);
-
-/**
- * @brief Determines the amount to increment to Program Counter by based on the
- *        actions configured to be executed by each User Pin. The Program 
- *        Counter should not be incrmented if a User Pin executes a function
- *        that modifies the Program Counter.
- * @param pinHandles A pointer to PIN_HANDLES struct that contains all the User
- *        Pin pointers.
- * @return uint8_t The value to increment the Program Counter by.
- */
-uint8_t getPCIncrement(struct PIN_HANDLES* pinHandles);
-
-/**
- * @brief Prints the command line usage menu.
- */
-void printUsage(void);
-
-/**
- * @brief Prints System Program Counter and current Address as well as Register
- *        and Pin information of the ICU. 
- * @param pc Current Program Counter value.
- * @param address Current operating address.
- * @param icu A pointer to a MC14500 struct to obtain information.
- */
-void printSystemInfo(uint16_t pc, uint32_t address, struct MC14500* icu);
-
-/**
- * @brief Parses all the command line Arguments and sets the appropriate options
- *        in the OPTIONS struct.
- * @param sOptions A pointer to the OPTIONS struct to store all the configured
- *        options.
- * @param argc Count of command line arguments.
- * @param argv A pointer to the Array of command line arguments.
- * @return 
- */
-int parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]);
-
-/**
- * @brief 
- * @param programROM A pointer to a uint32_t array to store the progam file 
- *        contents.
- * @param sOptions A pointer to an OPTIONS struct that contains all the 
- *        configuration parameters for the system.
- * @return uint8_t Return 0 for success or 1 if any part fails.
- */
-uint8_t programROMFromFile(uint32_t* programROM,struct OPTIONS* sOptions);
 
 #endif
