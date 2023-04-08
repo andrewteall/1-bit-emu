@@ -25,14 +25,20 @@ SOFTWARE.
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <ncurses.h>
 
 #include "ulog.h"
 
 /* Strings that correlate to LOGLEVEL enum so that LOGLEVEL can be printed */
 const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEBUG",};
 
+const char *ONOFFTRINGS[] = {"OFF","ON",};
+
 /* Static global Logging Level to track verbosity across the program */
 static int loggingLevel = WARNING;
+
+/* Static global Curses Mode to track mode across the program */
+static int cursesMode = 0;
 
 /* Logging method to support filtering out logs by verbosity */
 void ulog(int verbosity, const char* logMessage,...) {
@@ -42,7 +48,11 @@ void ulog(int verbosity, const char* logMessage,...) {
 		va_start(args, logMessage);
 		vsnprintf(logBuf,sizeof(logBuf),logMessage, args);
 		va_end(args);
-    	printf("%s:\t%s\n", LOGLEVELSTRINGS[verbosity],logBuf);
+		if(cursesMode){
+			printw("%s:\t%s\n", LOGLEVELSTRINGS[verbosity],logBuf);
+		} else {
+    		printf("%s:\t%s\n", LOGLEVELSTRINGS[verbosity],logBuf);
+		}
 	}
 }
 
@@ -57,6 +67,16 @@ int setLoggingLevel(int newLogLevel){
 		ulog(ERROR,"Invalid Logging Level. Log Level could not be set.");
 		return 1;
 	}
+}
+
+/* Sets CursesMode to the specified mode. */
+int setCursesMode(int mode){
+		if(mode > 1){
+			mode = 1;
+		}
+		cursesMode = mode;
+		ulog(INFO,"Setting Curses Mode to %s",ONOFFTRINGS[mode]);
+		return 0;	
 }
 
 /* Returns the currently set LoggingLevel */
