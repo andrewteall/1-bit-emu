@@ -40,6 +40,9 @@ static int loggingLevel = WARNING;
 /* Static global Curses Mode to track mode across the program */
 static int cursesMode = 0;
 
+static int cursesLogXPos = 0;
+static int cursesLogYPos = 0;
+
 /* Logging method to support filtering out logs by verbosity */
 void ulog(int verbosity, const char* logMessage,...) {
 	if (verbosity <= loggingLevel){
@@ -49,7 +52,7 @@ void ulog(int verbosity, const char* logMessage,...) {
 		vsnprintf(logBuf,sizeof(logBuf),logMessage, args);
 		va_end(args);
 		if(cursesMode){
-			printw("%s:\t%s\n", LOGLEVELSTRINGS[verbosity],logBuf);
+			mvprintw(cursesLogYPos,cursesLogXPos,"%s:\t%s\n", LOGLEVELSTRINGS[verbosity],logBuf);
 		} else {
     		printf("%s:\t%s\n", LOGLEVELSTRINGS[verbosity],logBuf);
 		}
@@ -76,6 +79,13 @@ int setCursesMode(int mode){
 		}
 		cursesMode = mode;
 		ulog(INFO,"Setting Curses Mode to %s",ONOFFTRINGS[mode]);
+		return 0;	
+}
+
+/* Sets CursesMode to the specified mode. */
+int setCursesLogPos(int xPos,int yPos){
+		cursesLogXPos = xPos;
+		cursesLogYPos = yPos;
 		return 0;	
 }
 
