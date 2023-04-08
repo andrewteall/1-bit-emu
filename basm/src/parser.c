@@ -294,11 +294,9 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 				maxAddress = currentAddress+tokenArr[i].size;
 			}
 		}
-	}
-
-
-	if(sOptions->printLabelTable){
-		printLabelTable(labelTable,labelTableLen);
+		if(sOptions->printLabelTable){
+			printLabelTable(labelTable,labelTableLen);
+		}
 	}
 
 	if(sOptions->parsePrint){
@@ -371,7 +369,7 @@ int processDirective(struct OPTIONS* sOptions,struct TOKEN* tokenArr, struct LAB
 void printLabelTable(struct LABEL *labelTable, int labelTableLen){
 	printf("========================== Label Table ===========================\n");
 	for(int i=0; i<labelTableLen; i++){
-		printf("|%18s : %3i    isRemapped: %i  SubroutineID: %i\n",labelTable[i].name,labelTable[i].value, \
+		printf("|%18s : 0x%04x    isRemapped: %i  SubroutineID: %i\n",labelTable[i].name,labelTable[i].value, \
 										labelTable[i].isRemapped, labelTable[i].subroutineID);
 	}
 	printf("==================================================================\n\n");
@@ -407,6 +405,7 @@ int getCountBitsInNum(unsigned int num){
 int getLabelValue(struct LABEL *labelTable, int labelTableLen, char* labelName, int subroutineID){
 	int labelIdx = getLabelIdx(labelTable,labelTableLen,labelName,subroutineID);
 	if(labelIdx != -1){
+		ulog(DEBUG,"Getting Label: %s Value: 0x%02x",labelName,labelTable[labelIdx].value);
 		return labelTable[labelIdx].value;
 	} else {
 		return -1;
