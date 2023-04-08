@@ -51,6 +51,8 @@ SOFTWARE.
      * @returns uint8_t Returns 0 if cursesMode is successfully set. 1 if not.
      */
     int setCursesMode(int mode);
+
+    int setCursesLogPos(int xPos,int yPos);
     
     /**
      * @brief Returns the current logging level that is set.
