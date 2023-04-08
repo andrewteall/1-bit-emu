@@ -50,7 +50,7 @@ SOFTWARE.
      * @param mode The mode to set the program to.
      * @returns uint8_t Returns 0 if cursesMode is successfully set. 1 if not.
      */
-    int setLoggingLevel(int mode);
+    int setCursesMode(int mode);
     
     /**
      * @brief Returns the current logging level that is set.
