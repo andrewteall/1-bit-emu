@@ -52,7 +52,11 @@ void ulog(int verbosity, const char* logMessage,...) {
 		vsnprintf(logBuf,sizeof(logBuf),logMessage, args);
 		va_end(args);
 		if(cursesMode){
-			mvprintw(cursesLogYPos,cursesLogXPos,"%s:\t%s\n", LOGLEVELSTRINGS[verbosity],logBuf);
+			if(verbosity == OFF){
+				mvprintw(cursesLogYPos,cursesLogXPos,"%s\n", logBuf);
+			} else {
+				mvprintw(cursesLogYPos,cursesLogXPos,"%s: %s\n", LOGLEVELSTRINGS[verbosity],logBuf);
+			}
 		} else {
     		printf("%s:\t%s\n", LOGLEVELSTRINGS[verbosity],logBuf);
 		}

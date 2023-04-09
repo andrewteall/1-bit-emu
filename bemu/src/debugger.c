@@ -135,6 +135,6 @@ void drawScreen(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct M
     
     
     checkForUserKeyPress(sOptions, pc, address, icu);
-    ulog(NONE,"                                                                                ");
+    ulog(OFF,"                                                                                ");
     refresh();
 }
