@@ -235,6 +235,11 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 				return 1;
 			}
 		}
+
+        //-f --filename
+		if (!(strcmp(argv[i],"-f")) || (!strcmp(argv[i],"--filename"))){
+			sOptions->filename = argv[i+1];
+		}
 	}
 	
 	for(int i=argc-1;i>0;i--){
@@ -355,7 +360,6 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 			}
 		}
 
-		// FIXME: Fix setting rr address higher than device count.
 		// -b --bind-rr-address
 		if (!strcmp(argv[i],"-b") || !strcmp(argv[i],"--bind-rr-address")){
 			sOptions->bindResultsRegister = 1;

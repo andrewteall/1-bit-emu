@@ -11,7 +11,7 @@ int main(int argc, char* argv[]){
         printUsage();
         ulog(ERROR,"Filename to open must be specified. Exiting now");
         return 1;
-	} else {
+    } else {
         /*********************************************************************/
         /************************* Init Program ******************************/
         struct OPTIONS sOptions;
@@ -44,7 +44,8 @@ int main(int argc, char* argv[]){
         /*********************************************************************/
         /************************* Setup Stack *******************************/
         uint32_t stack[sOptions.stackSize];
-        uint8_t  sp  = !sOptions.stackDir*(sOptions.stackSize-1);
+        uint8_t  sp  = !sOptions.stackDir*(sOptions.stackSize);
+        initStack(stack,&sp,&sOptions);
         /*********************************************************************/
 
         /*********************************************************************/
@@ -97,7 +98,10 @@ int main(int argc, char* argv[]){
         }
 
         if(sOptions.enableDebugger){
-            stopDebugger();
+            stopDebugger(error);
+        }
+        if(error){
+            ulog(ERROR,"Exited due to error...");
         }
         return error;
     }

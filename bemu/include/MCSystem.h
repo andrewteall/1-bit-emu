@@ -28,8 +28,7 @@ const char* pinActionsStrings[9];
  * @param address The address operand of currently executing instruction.
  * @return uint8_t Returns a 0 is successful or a 1 if any failure occurs.
  */
-uint8_t pinHandler(struct MC14500* icu,uint32_t* stack, uint8_t* sp, uint16_t* pc, \
-                        struct OPTIONS* sOptions, uint32_t address);
+uint8_t pinHandler(struct MC14500* icu,uint32_t* stack, uint8_t* sp, uint16_t* pc, struct OPTIONS* sOptions, uint32_t address);
 
 void setPinHandlers(struct PIN_HANDLES* pinHandles,uint8_t* jmpPin,uint8_t* rtnPin,uint8_t* flagOPin,uint8_t* flagFPin);
 
@@ -68,7 +67,7 @@ uint32_t decodeInstruction(uint32_t programROMValue, struct OPTIONS* sOptions);
  */
 uint32_t decodeAddress(uint32_t programROMValue, struct OPTIONS* sOptions);
 
-
+void initStack(uint32_t* stack, uint8_t* sp, struct OPTIONS* sOptions);
 
 uint32_t readWordFromROM(uint32_t* programROM, uint16_t pc, struct OPTIONS* sOptions);
 

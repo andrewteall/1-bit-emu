@@ -54,22 +54,25 @@ void latchIODeviceValueToDataPin(struct IODevice* deviceList, uint32_t address, 
 		if(maxNumDevices > address){
 			*dataPin = *deviceList[address].value;
 		} else {
-			ulog(WARNING,"Device specified at address: %i is greater than the maximum number of devices: %i",address,maxNumDevices);
+			// TODO: Address will actually be equal to what ever the bit alignment of the address to the MaxNumDevices
+			ulog(WARNING,"Can not read device at address: 0x%02x is greater than the maximum number of devices: 0x%02x",address,maxNumDevices);
 			*dataPin = 0;
 		}
 	}
 }
 
 void latchDataPinToIODevice(struct IODevice* deviceList, uint32_t address, uint8_t* dataPin, uint8_t writePin, uint16_t maxNumDevices){
-	if(maxNumDevices > address){
-		if (writePin){
-			if(deviceList[address].type != INPUT){
+	if (writePin){
+		if(deviceList[address].type != INPUT){
+			if(maxNumDevices > address){
 				*deviceList[address].value = (writePin & *dataPin) | ((writePin) & *deviceList[address].value);
-			} else {
-				ulog(WARNING,"Attempting to write to an INPUT Device at address: %i", address);
+			}  else {
+				ulog(WARNING,"Can not write device at address: 0x%02x is greater than the maximum number of devices: 0x%02x",address,maxNumDevices);
+				// TODO: Address will actually be equal to what ever the bit alignment of the address to the MaxNumDevices
 			}
+		} else {
+			ulog(WARNING,"Attempting to write to an INPUT Device at address: %i", address);
 		}
-	} else {
-		ulog(WARNING,"Device specified at address: %i is greater than the maximum number of devices: %i",address,maxNumDevices);
-	}
+		
+	} 
 }

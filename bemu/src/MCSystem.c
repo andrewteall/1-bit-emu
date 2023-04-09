@@ -13,30 +13,30 @@ void push(uint32_t* stack, uint8_t* sp, uint32_t value, struct OPTIONS* sOptions
     stack[*sp] = value;
     if(sOptions->stackDir == UP){
 		if(*sp == sOptions->stackSize){
-			ulog(ERROR,"Stack Overflow");
+			ulog(ERROR,"Stack Overflow at address: 0x%02x",value);
 			*err = 1;
 		}
         (*sp)++;
     } else {
 		if(*sp == 0){
-			ulog(ERROR,"Stack Overflow");
+			ulog(ERROR,"Stack Overflow at address: 0x%02x",value);
 			*err = 1;
 		}
         (*sp)--;
     }
 }
 
-uint32_t pull(uint32_t* stack, uint8_t* sp, struct OPTIONS* sOptions, uint8_t* err){
+uint32_t pull(uint32_t* stack, uint8_t* sp, struct OPTIONS* sOptions, uint16_t pc, uint8_t* err){
     if(sOptions->stackDir == UP){
 		if(*sp == 0){
-			ulog(ERROR,"Stack Overflow");
+			ulog(ERROR,"Stack Underflow at address: 0x%02x",pc);
 			*err = 1;
 			return *sp;
 		}
         (*sp)--;
     } else {
 		if(*sp == sOptions->stackSize){
-			ulog(ERROR,"Stack Overflow");
+			ulog(ERROR,"Stack Underflow at address: 0x%02x",pc);
 			*err = 1;
 			return *sp;
 		}
@@ -45,6 +45,11 @@ uint32_t pull(uint32_t* stack, uint8_t* sp, struct OPTIONS* sOptions, uint8_t* e
     return stack[*sp];
 }
 
+void initStack(uint32_t* stack, uint8_t* sp, struct OPTIONS* sOptions){
+    for(int i = 0; i < sOptions->stackSize;i++){
+        stack[i] = 0;
+    }
+}
 /*****************************************************************************/
 /************************* User Defined Functions ****************************/
 /*****************************************************************************/
@@ -64,7 +69,7 @@ uint8_t jumpSubRoutine(uint32_t* stack, uint8_t* sp, uint16_t* pc, struct OPTION
 
 uint8_t returnSubRoutine(uint32_t* stack, uint8_t* sp, uint16_t* pc, struct OPTIONS* sOptions){
 	uint8_t err = 0;
-	*pc = pull(stack,sp,sOptions,&err);
+	*pc = pull(stack,sp,sOptions, *pc,&err);
 	return err;
 }
 

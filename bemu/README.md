@@ -3,7 +3,7 @@
 Bemu provides away to emulate and debug MC14500 programs.
 
 ## Usage
-```c
+```
 Usage: bemu [options] file
 Options:
 -ap N,         --address-position N         Sets the position of the address within the memory from the MSB. Default: 4
@@ -17,8 +17,10 @@ Options:
 -io N,         --io-count                   Sets the number of io address available to the system. Default 15.
 -ip N,         --instruction-position N     Sets the position of the instruction within the memory from the MSB. Default: 0
 -iw N,         --instruction-width N        Set the width in bits of the instruction. Default: 4
+ -p,           --print-state                Prints system status after each instruction. Does not work if --debug is set.
+-pc N,         --program-counter N          Set the Program Counter to an initial address other than 0. Default: 0
  -r N,         --rom-size N                 Set the size of the Program ROM in bytes. Default: 255
- -s,           --split-file                 Makes two seperate files one with Opcodes and one with Operands.
+ -s,           --step-mode                  Runs program in step mode. Valid when --debug flag is set.
  -v N,         --v[vvvv]                    Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.
  ```
 
