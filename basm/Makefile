@@ -2,9 +2,9 @@ all: basm
 
 .PHONY: all  basm-release clean
 
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -lncurses
 
-CFLAGS_RELEASE = -Wall
+CFLAGS_RELEASE = -Wall -lncurses
 
 BIN_DIR = ../bin/
 LIB_DIR = ../lib/

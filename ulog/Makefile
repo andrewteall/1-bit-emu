@@ -5,9 +5,9 @@ all: ulog.c
 CC = gcc
 
 LIB_FILE = ulog.o
-CFLAGS = -Wall -c -g
+CFLAGS = -Wall -c -g -lncurses
 
-CFLAGS_RELEASE = -Wall -c
+CFLAGS_RELEASE = -Wall -c -lncurses
 
 LIB_DIR = ../lib/
 
