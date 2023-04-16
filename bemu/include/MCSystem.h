@@ -70,5 +70,6 @@ uint32_t decodeAddress(uint32_t programROMValue, struct OPTIONS* sOptions);
 void initStack(uint32_t* stack, uint8_t* sp, struct OPTIONS* sOptions);
 
 uint32_t readWordFromROM(uint32_t* programROM, uint16_t pc, struct OPTIONS* sOptions);
+uint8_t selectPinAndHandler(struct MC14500* icu, struct PIN_HANDLES* pinHandles);
 
 #endif

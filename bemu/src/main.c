@@ -71,6 +71,7 @@ int main(int argc, char* argv[]){
         uint32_t address;
         uint8_t instruction;
         uint32_t programROMValue;
+        int skipNext = 0;
         startICU(&icu);
         while(icu.status == RUNNING && !error){
             // Fetch - Clock Up
@@ -86,7 +87,8 @@ int main(int argc, char* argv[]){
             latchDataPinToIODevice(deviceList,address,&icu.dataPin,icu.writePin,sOptions.ioDeviceCount);// Latch Data Pin out to device
             
             if(sOptions.enableDebugger){
-                drawScreen(&sOptions,pc, address, &icu,deviceList,stack,&sp);
+                skipNext = skipNext | icu.skipRegister ;
+                drawScreen(&sOptions,pc, address, &icu,deviceList,stack,&sp,programROM,&skipNext);
             } else if(sOptions.printState){
                 printSystemInfo(pc, address, &icu);
             }

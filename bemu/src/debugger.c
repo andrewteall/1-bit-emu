@@ -11,13 +11,23 @@
 int startDebugger(struct OPTIONS* sOptions){
     int err = 0;
     setCursesMode(1);
-    setCursesLogPos(0,12);
+    setCursesLogPos(0,22);
     initscr();
     cbreak();
     noecho();
     nonl(); 
     // intrflush(stdscr, FALSE); 
     keypad(stdscr, TRUE);
+    if (has_colors() == FALSE) {
+        endwin();
+        ulog(ERROR,"Your terminal does not support color\n");
+        err = 1;    
+    } else {        
+        start_color();
+        use_default_colors();
+        init_pair(1, COLOR_WHITE, COLOR_RED);
+        init_pair(2, COLOR_WHITE, COLOR_BLUE);
+    }
     if(sOptions->stepMode){
         timeout(-1);
     } else {
@@ -44,18 +54,18 @@ void stopDebugger(int error){
 void checkForUserKeyPress(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct MC14500* icu){
     int ch = getch();
     switch (ch){
-        // case KEY_UP:
-        //     printw ("\nUp Arrow");
-        //     break;
-        // case KEY_DOWN:
-        //     printw ("\nDown Arrow");
-        //     break;
-        // case KEY_RIGHT:
-        //     printw ("\nLeft Arrow");
-        //     break;
-        // case KEY_LEFT:
-        //     printw ("\nRight Arrow");
-        //     break;
+        case KEY_UP:
+            // printw ("\nUp Arrow");
+            break;
+        case KEY_DOWN:
+            // printw ("\nDown Arrow");
+            break;
+        case KEY_RIGHT:
+            // printw ("\nLeft Arrow");
+            break;
+        case KEY_LEFT:
+            // printw ("\nRight Arrow");
+            break;
         case 's':
             sOptions->stepMode = !sOptions->stepMode;
             if(sOptions->stepMode){
@@ -79,7 +89,7 @@ void printStack(struct OPTIONS* sOptions,uint8_t xpos,uint8_t ypos,uint32_t* sta
     // 11 x 7
     int viewContext = *sp;
     mvprintw(ypos++,xpos,"       Stack      ");
-    mvprintw(ypos++,xpos," ---------------- ");
+    mvprintw(ypos++,xpos," ================ ");
     if (viewContext == sOptions->stackSize || viewContext == sOptions->stackSize-1){
         viewContext = 0xfd;
     }
@@ -107,34 +117,100 @@ void printStack(struct OPTIONS* sOptions,uint8_t xpos,uint8_t ypos,uint32_t* sta
     
 }
 
+void clearLogMessage(){
+    ulog(OFF,"                                                                                ");
+}
+
 void drawScreen(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct MC14500* icu,struct IODevice* deviceList, \
-                    uint32_t* stack, uint8_t* sp){
+                    uint32_t* stack, uint8_t* sp,  uint32_t* programROM,int* skipNext){
     move(0,0);
     printw("-------------------------------| Bemu Debugger  |-------------------------------\n");
     move(1,0);
-    printw("\n       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
-	printw("       ===============================================================\n");
-	for (int i = 0; i < sOptions->ioDeviceCount; i++){
+    printw("       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
+	printw("Device ===============================================================\n");
+	for (int i = 0; i < sOptions->ioDeviceCount && i < 48; i++){
 		printw("%04x | ",i);
 		int j=0;
 		while(j<16 && i<sOptions->ioDeviceCount){
-			printw("%02x  ",*deviceList[i++].value);
+            if(address == i){
+                attrset(COLOR_PAIR(1));
+                printw("%02x",*deviceList[i++].value);
+                attroff(COLOR_PAIR(1));
+                printw("  ");
+            } else{
+                if(sOptions->bindResultsRegister && (i == sOptions->rrDeviceAddress)){
+                    attrset(COLOR_PAIR(2));
+                    printw("%02x",*deviceList[i++].value);
+                    attroff(COLOR_PAIR(2));
+                    printw("  ");
+                } else {
+			        printw("%02x  ",*deviceList[i++].value);
+                }
+            }
 			j++;
 		}
 		i--;
 		printw("\n");
 	}
+    
     move(7, 0);
-    printw("PC = 0x%02x  Inst = %4s(0x%02x)  Addr = 0x%02x  LU = %i  RR = %i\n  IEN/OEN = %i/%i  " \
-					"Write: %i  Data: %i  Skip Next: %i  JROF: %i%i%i%i\n",
-                    pc,mnenomicStrings[icu->instruction],icu->instruction,address,icu->logicUnit,icu->resultsRegister,icu->ienRegister, \
-                    icu->oenRegister,icu->writePin,icu->dataPin,icu->skipRegister,icu->jmpPin,icu->rtnPin,icu->flagOPin,icu->flagFPin);
+    printw("                 Registers and Pins          \n");
+    printw("=====================================================\n");
+    printw("PC: 0x%02x  Inst: %4s(0x%02x)  Addr: 0x%02x    SP: 0x%02x\n\nLU: %i     RR: %i          IEN/OEN = %i/%i " \
+					"   Write: %i\n\nData: %i   Skip Next: %i      JROF: %i%i%i%i    Map: %s\n",
+                    pc,mnenomicStrings[icu->instruction],icu->instruction,address,*sp, icu->logicUnit,icu->resultsRegister, \
+                    icu->ienRegister,icu->oenRegister,icu->writePin,icu->dataPin,icu->skipRegister,icu->jmpPin,icu->rtnPin, \
+                    icu->flagOPin,icu->flagFPin, pinActionsStrings[selectPinAndHandler(icu,&sOptions->pinHandles)]);
 
-    printStack(sOptions,61,5,stack,sp);
-    refresh();
+
+    printStack(sOptions,53,7,stack,sp);
+
+    move(15, 0);
+    printw("       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
+	printw(" ROM   ===============================================================\n");
+	for (int i = 0; i < sOptions->romSize && i < 64; i++){
+		printw("%04x | ",i);
+		int j=0;
+		while(j<16 && i<sOptions->romSize){
+            if(pc <= i && pc >= (i-(sOptions->wordWidth-1))){
+                attrset(COLOR_PAIR(1));
+                printw("%02x",programROM[i++]);
+                attroff(COLOR_PAIR(1));
+                printw("  ");
+            } else{
+			    printw("%02x  ",programROM[i++]);
+            }
+			j++;
+		}
+		i--;
+		printw("\n");
+	}
     
-    
+
+
+    int execX = 70;
+    int execY = 2;
+    int idx = 0;
+
+    for(int i = 0; i < 19;i++){
+        uint32_t programROMValue = readWordFromROM(programROM,idx,sOptions);
+        uint32_t romAddress = decodeAddress(programROMValue,sOptions);
+        uint32_t  instruction = decodeInstruction(programROMValue, sOptions);
+         mvprintw(execY,execX," ");
+        if(pc == idx){
+            attrset(COLOR_PAIR(1));
+            printw("% 4s %4x",mnenomicStrings[instruction],romAddress);
+            attroff(COLOR_PAIR(1));
+        }else{
+            printw("% 4s %4x",mnenomicStrings[instruction],romAddress);
+        }
+        idx += sOptions->wordWidth;
+        execY++;
+    }
+
+    move(23,0);
     checkForUserKeyPress(sOptions, pc, address, icu);
-    ulog(OFF,"                                                                                ");
+    clearLogMessage();
+    
     refresh();
 }
