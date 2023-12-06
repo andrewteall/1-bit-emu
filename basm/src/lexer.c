@@ -8,6 +8,16 @@
 
 const int delimeterList[] = {' ', '\t', '\n', EOF, ':','=','+', '-', '*', 0};
 
+const char *mnenomicStrings[] = {
+	"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","NULL"};
+
+const char *assignmentStrings[] = {"=","EQU","NULL"};
+
+const char *includeStrings[] = {"INCLUDE","NULL"};
+
+const char *directiveStrings[] = {"ORG","REMAP","SUB", "END_S","SUBROUTINE","END_SUBROUTINE","REP","REPEAT","REPEND","NULL"};
+
+const char *labelModStrings[] = {"+","-","*","NULL"};
 
 int tokenizeFile(struct OPTIONS* sOptions, struct TOKEN* sTokenArray, struct FILE_TABLE* sFileTable, int* sTokenArrayLength){
 	if (sFileTable->length == 0) {
@@ -330,7 +340,7 @@ void printFileTable(struct FILE_TABLE* sFileTable){
 	printf("================================= File Table ===================================\n");
 	printf("| %s %28s %44s\n","Idx","Filename","Parent Idx");
 	for(int i=0; i<sFileTable->length; i++){
-		printf("| %2i: %32s %*i\n",i,sFileTable->table[i],70-strlen(sFileTable->table[i]),sFileTable->parentIdx[i]);
+		printf("| %2i: %32s %*i\n",i,sFileTable->table[i],(int)(70-strlen(sFileTable->table[i])),sFileTable->parentIdx[i]);
 	}
 	printf("================================================================================\n\n");
 }

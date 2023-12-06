@@ -53,9 +53,9 @@ void ulog(int verbosity, const char* logMessage,...) {
 		va_end(args);
 		if(cursesMode){
 			if(verbosity == OFF){
-				mvprintw(cursesLogYPos,cursesLogXPos,"%s\n", logBuf);
+				// mvprintw(cursesLogYPos,cursesLogXPos,"%s\n", logBuf);
 			} else {
-				mvprintw(cursesLogYPos,cursesLogXPos,"%s: %s\n", LOGLEVELSTRINGS[verbosity],logBuf);
+				// mvprintw(cursesLogYPos,cursesLogXPos,"%s: %s\n", LOGLEVELSTRINGS[verbosity],logBuf);
 			}
 		} else {
     		printf("%s:\t%s\n", LOGLEVELSTRINGS[verbosity],logBuf);

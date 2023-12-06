@@ -1,23 +1,13 @@
 #include <string.h>
+#include <stdio.h>
 #include <limits.h>
 #include <ctype.h>
 
 #include "basm.h"
 #include "../../ulog/include/ulog.h"
 
-const char *mnenomicStrings[17] = {
-	"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","NULL"};
-
-const char *tokenTypeStrings[9] = {"MNENOMIC","ASSIGNMENT","INCLUDE","DIRECTIVE","FLAG","NUMBER    ","NEWLINE", \
+const char *tokenTypeStrings[] = {"MNENOMIC","ASSIGNMENT","INCLUDE","DIRECTIVE","FLAG","NUMBER    ","NEWLINE", \
 									"LABEL_MOD", "LABEL   "};
-
-const char *assignmentStrings[3] = {"=","EQU","NULL"};
-
-const char *includeStrings[2] = {"INCLUDE","NULL"};
-
-const char *directiveStrings[10] = {"ORG","REMAP","SUB", "END_S","SUBROUTINE","END_SUBROUTINE","REP","REPEAT","REPEND","NULL"};
-
-const char *labelModStrings[4] = {"+","-","*","NULL"};
 
 void prettyPrintBytes(char* array, int size){
 	printf("\n       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");

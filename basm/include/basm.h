@@ -82,12 +82,12 @@ struct OPTIONS {
 };
 
 
-const char *mnenomicStrings[17];
-const char *tokenTypeStrings[9];
-const char *assignmentStrings[3];
-const char *includeStrings[2];
-const char *directiveStrings[10];
-const char *labelModStrings[4];
+// extern char *mnenomicStrings[];
+// extern char *tokenTypeStrings[];
+// extern char *assignmentStrings[];
+// extern char *includeStrings[];
+// extern char *directiveStrings[];
+// extern char *labelModStrings[];
 
 
 int  setWordWidth(struct OPTIONS*);

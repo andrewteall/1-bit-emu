@@ -6,6 +6,9 @@
 #include "parser.h"
 #include "../../ulog/include/ulog.h"
 
+const char *mnenomicStrings2[] = {
+	"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","NULL"};
+
 struct LABEL {
 	char* name;
 	int   value;
@@ -377,7 +380,7 @@ void printLabelTable(struct LABEL *labelTable, int labelTableLen){
 
 int getMnenomicOpCode(char* mnemonicString){
 	for(int index = 0;index<16;index++){
-		if (!strcmp(mnemonicString,mnenomicStrings[index])){
+		if (!strcmp(mnemonicString,mnenomicStrings2[index])){
 			return index;
 		}
 	}
