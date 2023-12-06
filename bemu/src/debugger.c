@@ -6,8 +6,6 @@
 #include "IODevice.h"
 #include "../../ulog/include/ulog.h"
 
-// TODO: Better log redirection for debugger 
-
 int startDebugger(struct OPTIONS* sOptions){
     int err = 0;
     setCursesMode(1);
@@ -122,7 +120,7 @@ void clearLogMessage(){
 }
 
 void drawScreen(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct MC14500* icu,struct IODevice* deviceList, \
-                    uint32_t* stack, uint8_t* sp,  uint32_t* programROM,int* skipNext){
+                    uint32_t* stack, uint8_t* sp,  uint32_t* programROM){
     move(0,0);
     printw("-------------------------------| Bemu Debugger  |-------------------------------\n");
     move(1,0);
