@@ -2,6 +2,7 @@
 #define PARSER_H 1
 
 #include "basm.h"
+#include "token.h"
 
 struct LABEL;
 

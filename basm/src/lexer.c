@@ -2,36 +2,64 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #include "lexer.h"
+#include "utils.h"
+#include "token.h"
 #include "../../ulog/include/ulog.h"
 
 const int delimeterList[] = {' ', '\t', '\n', EOF, ':','=','+', '-', '*', 0};
 
 const char *mnenomicStrings[] = {
-	"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","NULL"};
+			"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","END"};
+const char *assignmentStrings[] = {"=","EQU","END"};
+const char *includeStrings[] = {"INCLUDE","END"};
+const char *directiveStrings[] = {"ORG","REMAP","SUB", "END_S","SUBROUTINE","END_SUBROUTINE","REP","REPEAT","REPEND","END"};
+const char *labelModStrings[] = {"+","-","*","END"};
 
-const char *assignmentStrings[] = {"=","EQU","NULL"};
-
-const char *includeStrings[] = {"INCLUDE","NULL"};
-
-const char *directiveStrings[] = {"ORG","REMAP","SUB", "END_S","SUBROUTINE","END_SUBROUTINE","REP","REPEAT","REPEND","NULL"};
-
-const char *labelModStrings[] = {"+","-","*","NULL"};
-
-int tokenizeFile(struct OPTIONS* sOptions, struct TOKEN* sTokenArray, struct FILE_TABLE* sFileTable, int* sTokenArrayLength){
-	if (sFileTable->length == 0) {
-		ulog(INFO,"Starting Tokenizer");
-		// Add the first file to the filetable if the table is empty
-		addFileToFileTable(sOptions, sFileTable, &sOptions->filename, 0, 0);
+int isTokenDelimeter(int c){
+	for(int i=0; delimeterList[i] != 0;i++){
+		if(c == delimeterList[i]){
+			return 1;
+		}
 	}
+	return 0;
+}
 
-	//open file
-	FILE* sourceFile = NULL;
+int isIncludeStatement(struct TOKEN* sTokenArray, int sTokenArrayLength){
+	return (sTokenArray[sTokenArrayLength-3].type == INCLUDE && sTokenArray[sTokenArrayLength-1].type == NEWLINE);
+}
+
+int tokenizeFile(struct TOKENIZER_CONFIG* tokenizerConfig, char* filename, struct TOKEN* tokenArray){
+	int tokenArrayLength;
+	struct FILE_TABLE fileTable;
+	fileTable.length = 0;
+	tokenizerConfig->includedFileDepth = 0;
+
+	// Add the first file to the filetable if the table is empty
+	addFileToFileTable(tokenizerConfig, &fileTable, &filename, 0, 0);
+	
+	ulog(INFO,"Starting Tokenizer");
+	tokenizer(tokenizerConfig, tokenArray, &fileTable, &tokenArrayLength);
+	if(tokenizerConfig->onlyTokenize){
+		printFileTable(&fileTable);
+		printTokens(tokenArray, tokenArrayLength);
+		return 0;
+	}
+	return tokenArrayLength;
+}
+
+int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArray, \
+					struct FILE_TABLE* sFileTable, int* sTokenArrayLength){
+	
 	int  fileIdx = sFileTable->length;
 	char* filename = sFileTable->table[fileIdx-1];
+
+	//open file
 	// TODO: Add where file is being opened from.
-	if (openFile(filename,&sourceFile)){ // if openFile fails return 1
+	ulog(DEBUG,"Opening File: %s",filename);
+	FILE* sourceFile = fopen(filename, "r");
+	if(sourceFile == NULL){
+		ulog(ERROR,"Error Opening File: %s",filename);
 		return 1;
 	}
 
@@ -57,16 +85,16 @@ int tokenizeFile(struct OPTIONS* sOptions, struct TOKEN* sTokenArray, struct FIL
 
 				if(isIncludeStatement(sTokenArray, *sTokenArrayLength) && !error){  // Check for Include Statement
 					char* includedFilename = sTokenArray[*sTokenArrayLength-2].stringValue;
-					error = addFileToFileTable(sOptions, sFileTable, &includedFilename,lineNumber,fileIdx);
+					error = addFileToFileTable(tokenizerConfig, sFileTable, &includedFilename,lineNumber,fileIdx);
 					if(error){
 						break;
 					}
 					
-					error = tokenizeFile(sOptions,sTokenArray,sFileTable,sTokenArrayLength);
+					error = tokenizer(tokenizerConfig,sTokenArray,sFileTable,sTokenArrayLength);
 					if(error){
 						break;
 					}
-					sOptions->includedFileDepth--;
+					tokenizerConfig->includedFileDepth--;
 				}
 			}
 
@@ -84,7 +112,7 @@ int tokenizeFile(struct OPTIONS* sOptions, struct TOKEN* sTokenArray, struct FIL
 					}
 				} else {
 					ulog(ERROR,"Size of the Token String excedes its maximum length: %i in File %s:%i", \
-										tokenStrBufferLength,getCurrentFilename(sFileTable,fileIdx-1),lineNumber);
+										tokenStrBufferLength,sFileTable->table[fileIdx-1],lineNumber);
 					error = 1;
 					break;
 				}
@@ -110,29 +138,15 @@ int tokenizeFile(struct OPTIONS* sOptions, struct TOKEN* sTokenArray, struct FIL
 		if(c == EOF || eofProcessingCounter){
 			eofProcessingCounter++;
 		}
-	
 	}
+	
 	//close file
-	ulog(DEBUG,"Closing File: %s  File Depth: %i",filename,sOptions->includedFileDepth);
+	ulog(DEBUG,"Closing File: %s  File Depth: %i",filename,tokenizerConfig->includedFileDepth);
 	fclose(sourceFile);
 	
     return error;
 }
 
-
-char* getCurrentFilename(struct FILE_TABLE* sFileTable, int index){
-	return sFileTable->table[index];
-}
-
-int openFile(char* filename,FILE** fileHandlePtr){
-	ulog(DEBUG,"Opening File: %s",filename);
-	*fileHandlePtr = fopen(filename, "r");
-	if(*fileHandlePtr == NULL){
-		ulog(FATAL,"Error Opening File: %s",filename);
-		return 1;
-	}
-	return 0;
-}
 
 int addNewTokenToArray(struct TOKEN* sTokenArray, int* sTokenArrayLength, char* tokenStr, char* filename, int* lineNumber){
 	if(*sTokenArrayLength == MAX_NUM_TOKENS){
@@ -178,14 +192,15 @@ int hasCircularFileInclude(struct FILE_TABLE* sFileTable){
 	return 0;
 }
 
-int addFileToFileTable(struct OPTIONS* sOptions, struct FILE_TABLE* sFileTable,char** includedFile,int line,int fileIdx){
+int addFileToFileTable(struct TOKENIZER_CONFIG* tokenizerConfig, struct FILE_TABLE* sFileTable,char** includedFile, \
+								int line,int fileIdx){
 	if (sFileTable->length == MAX_FILE_INCLUDES){
 		ulog(ERROR,"Too many includes: %i Last Include: %s:%i",MAX_FILE_INCLUDES, \
 						sFileTable->table[sFileTable->parentIdx[sFileTable->length]-1],line-1);
 		return 1;
-	} else if(sOptions->includedFileDepth == sOptions->maxFileDepth){
+	} else if(tokenizerConfig->includedFileDepth == tokenizerConfig->maxFileDepth){
 		ulog(ERROR,"Too many nested includes %i: %s:%i  You can override this value with the -m flag", \
-						sOptions->maxFileDepth,sFileTable->table[fileIdx-1],line-1);
+						tokenizerConfig->maxFileDepth,sFileTable->table[fileIdx-1],line-1);
 		return 1;
 	} else {
 		char* sourceFullPathFilename = sFileTable->table[sFileTable->length];
@@ -212,10 +227,10 @@ int addFileToFileTable(struct OPTIONS* sOptions, struct FILE_TABLE* sFileTable,c
 		sFileTable->parentIdx[sFileTable->length] = fileIdx-1;
 		(sFileTable->length)++;
 
-		sOptions->includedFileDepth++;
+		tokenizerConfig->includedFileDepth++;
 		*includedFile = sourceFullPathFilename;
 		if(hasCircularFileInclude(sFileTable)){
-			ulog(DEBUG,"File Table Length: %i  Included File Depth: %i",sFileTable->length,sOptions->includedFileDepth);
+			ulog(DEBUG,"File Table Length: %i  Included File Depth: %i",sFileTable->length,tokenizerConfig->includedFileDepth);
 			printFileTable(sFileTable);
 			ulog(ERROR,"Circular Include in file: %s:%i",sFileTable->table[sFileTable->parentIdx[sFileTable->length-1]],line-1);
 			
@@ -225,12 +240,20 @@ int addFileToFileTable(struct OPTIONS* sOptions, struct FILE_TABLE* sFileTable,c
 	}
 }
 
+void printFileTable(struct FILE_TABLE* sFileTable){
+	printf("================================= File Table ===================================\n");
+	printf("| %s %28s %44s\n","Idx","Filename","Parent Idx");
+	for(int i=0; i<sFileTable->length; i++){
+		printf("| %2i: %32s %*i\n",i,sFileTable->table[i],(int)(70-strlen(sFileTable->table[i])),sFileTable->parentIdx[i]);
+	}
+	printf("================================================================================\n\n");
+}
 
 
 
 int containsMatch(const char* arrayToMatch[],char* tokenStr){
 	toUpperString(tokenStr);
-	for(int index = 0;strcmp("NULL",arrayToMatch[index]);index++){
+	for(int index = 0;strcmp("END",arrayToMatch[index]);index++){
 		if (!strcmp(tokenStr,arrayToMatch[index])){
 			return 1;
 		}
@@ -319,28 +342,4 @@ int determineTokenType(char* tokenStr){
 	} 
 
 	return tokenType;
-}
-
-int isTokenDelimeter(int c){
-	for(int i=0; delimeterList[i] != 0;i++){
-		if(c == delimeterList[i]){
-			return 1;
-		}
-	}
-	return 0;
-}
-
-int isIncludeStatement(struct TOKEN* sTokenArray, int sTokenArrayLength){
-	return (sTokenArray[sTokenArrayLength-3].type == INCLUDE && sTokenArray[sTokenArrayLength-1].type == NEWLINE);
-}
-
-
-
-void printFileTable(struct FILE_TABLE* sFileTable){
-	printf("================================= File Table ===================================\n");
-	printf("| %s %28s %44s\n","Idx","Filename","Parent Idx");
-	for(int i=0; i<sFileTable->length; i++){
-		printf("| %2i: %32s %*i\n",i,sFileTable->table[i],(int)(70-strlen(sFileTable->table[i])),sFileTable->parentIdx[i]);
-	}
-	printf("================================================================================\n\n");
 }

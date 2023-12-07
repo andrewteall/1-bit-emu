@@ -1,27 +1,47 @@
-#include <string.h>
 #include <stdio.h>
-#include <limits.h>
-#include <ctype.h>
+#include <string.h>
 
 #include "basm.h"
+#include "lexer.h"
+#include "parser.h"
+#include "token.h"
+#include "utils.h"
 #include "../../ulog/include/ulog.h"
 
-const char *tokenTypeStrings[] = {"MNENOMIC","ASSIGNMENT","INCLUDE","DIRECTIVE","FLAG","NUMBER    ","NEWLINE", \
-									"LABEL_MOD", "LABEL   "};
+int assemble(struct OPTIONS* options, char* filename){
+	struct TOKEN tokenArray[MAX_NUM_TOKENS];
+	struct TOKENIZER_CONFIG tokenizerConfig;
+	tokenizerConfig.maxFileDepth = options->maxFileDepth;
+	tokenizerConfig.onlyTokenize = options->onlyTokenize;
 
-void prettyPrintBytes(char* array, int size){
-	printf("\n       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
-	printf("       ===============================================================\n");
-	for (int i=0;i <=size;i++){
-		printf("%04x | ",i);
-		int j=0;
-		while(j<16 && i<=size){
-			printf("%02x  ",array[i++]);
-			j++;
-		}
-		i--;
-		printf("\n");
+	int numTokens = tokenizeFile(&tokenizerConfig, filename, tokenArray);
+
+/******************************************************************************/
+	/* Parse the Tokens generated */
+	int binSize = parseTokens(options, tokenArray, numTokens);
+	if (!binSize){
+		return 1;
 	}
+/******************************************************************************/
+
+/*******************************************************************************************/
+	// Write buffer to Binary Array in order
+	// if(options->align && binSize < options->alignValue){
+	// 		binSize = options->alignValue;
+	// }
+	// char binaryArr[binSize];
+	
+	// int byteWriteCounter = 0;
+	// for (int i=0;i<tokenArrayLength;i++){
+	// 	if (tokenArray[i].size){
+	// 		writeByteToArray(binaryArr,options,tokenArray[i].address,tokenArray[i].numericValue);
+	// 		byteWriteCounter += options->wordWidth;
+	// 	}
+	// }
+
+/*******************************************************************************************/
+
+	return binSize;
 }
 
 int writeByteToArray(char* array, struct OPTIONS* options, int position, int value){
@@ -59,16 +79,36 @@ char writeFile(char *path, char *bytes, size_t size){
     return 0;
 }
 
+void prettyPrintBytes(char* array, int size){
+	printf("\n       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
+	printf("       ===============================================================\n");
+	for (int i=0;i <=size;i++){
+		printf("%04x | ",i);
+		int j=0;
+		while(j<16 && i<=size){
+			printf("%02x  ",array[i++]);
+			j++;
+		}
+		i--;
+		printf("\n");
+	}
+}
+
+
+/******************************************************************************/
+/******************************** Init & Help *********************************/
+/******************************************************************************/
+/* Set Default Options */
 void setDefaultOptions(struct OPTIONS* options){
 	options->instructionWidth  		= 4;
 	options->addressWidth     		= 4;
 	options->instructionPosition    = 0;
 	options->addressPosition    	= 4;
+	options->wordWidth				= 8;
 
 	options->endianess          	= LITTLE_ENDIAN;
 	options->splitFile       		= 0;
 	options->interlaceFile  		= 0;
-	options->includedFileDepth		= 0;
 	options->maxFileDepth			= 10;
 
 	options->format					= 0;
@@ -80,11 +120,12 @@ void setDefaultOptions(struct OPTIONS* options){
 	options->align					= 0;
 	options->alignValue				= 0;
 	
-	strcpy(options->outFilePath,options->filename);
-	strcat(options->outFilePath,".bin");
+	// strcpy(options->outFilePath,options->filename);
+	// strcat(options->outFilePath,".bin");
 
 }
 
+/* Set the Word Width in Bits*/
 int setWordWidth(struct OPTIONS* options){
 	float instructionWidth =(float)options->instructionWidth;
 	float addressWidth =(float)options->addressWidth;
@@ -115,7 +156,8 @@ int setWordWidth(struct OPTIONS* options){
 	return 0;
 }
 
-int parseCommandLineAndInitOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
+/* Parse Command Lin Options */
+int parseCommandLine(struct OPTIONS* sOptions,int argc, char* argv[]){
 	sOptions->filename = argv[argc-1];
 	for(int i=argc-1;i>0;i--){
 		// -h --help
@@ -146,9 +188,6 @@ int parseCommandLineAndInitOptions(struct OPTIONS* sOptions,int argc, char* argv
 			sOptions->filename = argv[i+1];
 		}
 	}
-	
-	// Setup Default Options
-    setDefaultOptions(sOptions);
 
 	for(int i=argc-1;i>0;i--){
 		// -aw --address-width
@@ -312,117 +351,4 @@ void printHelp(){
 	printf(" -t,           --tokenize-only              Only read the file and generate tokens.\n");
     printf(" -v N, 	       --v[vvvv]                    Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
     printf("\n");
-}
-
-
-void printTokens(struct TOKEN* sTokenArray,int sTokenArrayLength){
-	printf("Printing Token List:\n");
-	for(int i=0; i < sTokenArrayLength;i++){
-		printf("%02i: File: %s:%i \t| Type: %s \t| Address: 0x%04x | Value: 0x%02x | Size: %i | Lexeme: %s\n", \
-		i,sTokenArray[i].filename,sTokenArray[i].lineNumber, tokenTypeStrings[sTokenArray[i].type], \
-		sTokenArray[i].address, sTokenArray[i].numericValue, sTokenArray[i].size, sTokenArray[i].stringValue );
-	}
-
-}
-
-
-/* Makes a String uppercase */
-char* toUpperString(char* string){
-	for(int i=0; i<strlen(string);i++){
-		string[i] = toupper(string[i]);
-	}
-	return string;
-}
-
-/* Round a float up and return an int */
-int roundUp(float floatNumber){
-	int intNumber = (int)floatNumber;
-	if(intNumber < floatNumber){
-		intNumber++;
-	}
-	return intNumber;
-}
-
-/* Converts a number string to an int */
-int str2num(char *numStr){
-	int num = 0;
-	int num_size = 0;
-	for (int i=strlen(numStr)-1,j=0;i>=0;i--){
-		if ((numStr[0] == '0' && (numStr[1] == 'x' || numStr[1] == 'X')) || numStr[0] == '$'){ 
-			// convert hexidecimal number
-			int limit = 2;
-			if(numStr[0] == '$'){
-				limit = 1;
-			}
-			if(!(i < limit) ){
-				if ((numStr[i] >= '0' && numStr[i] <= '9') || (numStr[i] >= 'A' && numStr[i] <= 'F') \
-					|| (numStr[i] >= 'a' && numStr[i] <= 'f') ){
-					if (j < 8){
-						if (numStr[i] >= 'A' && numStr[i] <= 'F') {
-							num += (numStr[i]-0x37)*(expo(16 , j++));
-						} else if (numStr[i] >= 'a' && numStr[i] <= 'f'){
-							num += (numStr[i]-0x57)*(expo(16 , j++));
-						} else {
-							num += (numStr[i]-0x30)*(expo(16 , j++));
-						}
-					} else {
-						ulog(ERROR,"Number out of Range");
-						num = -1;
-						i = -1;
-					}
-				} else {
-					ulog(ERROR,"Not a valid hexidecimal number");
-					num = -1;
-					i = -1;
-				}
-			}
-		}else if ((numStr[0] == '0' && (numStr[1] == 'b' || numStr[1] == 'B')) || numStr[0] == '%'){
-			int limit = 2;
-			if(numStr[0] == '%'){
-				limit = 1;
-			}
-
-			if(!(i < limit) ){
-				if (num_size < 32){
-					num += (numStr[i]-48)*(1 << j++);
-					num_size++;
-				} else {
-					ulog(ERROR,"Number out of Range");
-					num = -1;
-					i = -1;
-				}
-			}
-		
-			
-		} else { 
-			// convert decimal number
-			if (numStr[i] >= '0' && numStr[i] <= '9'){
-				if (j < 11){
-					num += (numStr[i]-0x30)*(expo(10 , j++));
-				} else {
-					ulog(ERROR,"Number out of Range");
-					num = -1;
-					i = -1;
-				}
-			} else {
-				ulog(ERROR,"Not a valid decimal number");
-				num = -1;
-				i = -1;
-			}
-		}
-	}
-	return num;
-}
-
-/* Exponent function */
-long expo(int base, int power){
-	int result = base;
-	if (power == 0){
-		result = 1;
-	} else {
-		for (int i = 1; i < power; i++){
-			result *= base;
-		}
-	}
-    return result;
 }

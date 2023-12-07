@@ -1,7 +1,7 @@
 #ifndef LEXER_H
 #define LEXER_H 1
 
-#include "basm.h"
+#include "token.h"
 
 #ifndef MAX_FILE_INCLUDES
 	#define MAX_FILE_INCLUDES 64
@@ -12,8 +12,15 @@
 #endif
 
 
+struct TOKENIZER_CONFIG {
+	int includedFileDepth;
+	int maxFileDepth;
+	char* filename;
+	int onlyTokenize;
+};
+
 struct FILE_TABLE {
-	char table[MAX_FILE_INCLUDES][PATH_MAX];
+	char table[MAX_FILE_INCLUDES][4096]; // Change back to PATH_MAX
 	int parentIdx[MAX_FILE_INCLUDES];
 	int length;
 };
@@ -22,35 +29,17 @@ struct FILE_TABLE {
 /**
  * Opens and Reads a file, filename, tokenizes all elements within, and 
  * stores the tokens in tokenBuffer.
- * @param options Configuration for the lexer.
+ * @param tokenizerConfig Configuration for the lexer.
  * @param sTokenArray Array used to store tokens read from file.
  * @param sFileTable Array to store filenames in as they are encountered.
  * @param tokenArrayLength Index to put the next token generated.
  
  * @returns int Size of the Token Buffer.
  **/
-int tokenizeFile(struct OPTIONS* sOptions, struct TOKEN* sTokenArray, struct FILE_TABLE* sFileTable, int* tokenArrayLength);
-
-
-/**
- * Determines whether or not a string is a Mnemonic.
- *
- * @param tokenStr The string to determine if it is a Mnemonic value.
- * @returns int 1 if tokenStr is a mnemonic 0 if tokenStr is not.
- **/
-int containsMatch(const char* arrayToMatch[],char* tokenStr);
-int isMnenomic(char* tokenStr);
-int isNumber(char* tokenStr);
-int isAssignment(char* tokenStr);
-int isInclude(char* tokenStr);
-int isDirective(char* tokenStr);
-int isLabelMod(char* tokenStr);
-
-int isTokenDelimeter(int c);
-int isIncludeStatement(struct TOKEN* sTokenArray, int tokenArrayLength);
+int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArray, struct FILE_TABLE* sFileTable, int* tokenArrayLength);
+int tokenizeFile(struct TOKENIZER_CONFIG* tokenizerConfig, char* filename, struct TOKEN* sTokenArray);
 
 void printFileTable(struct FILE_TABLE* fileTable);
-int openFile(char* filename, FILE** sourceFile);
 char* getCurrentFilename(struct FILE_TABLE* sFileTable, int index);
 
 
@@ -87,13 +76,13 @@ int clearTokenStringBuffer(char* tokenStrBuffer, int tokenStrBufferLength);
  * Determines the full path of a file, from includedFile and adds the 
  * fullpath of includedFile to the file table
  *
- * @param options Configuration for the lexer.
+ * @param tokenizerConfig Configuration for the lexer.
  * @param fileTable[][PATH_MAX] 2-D Array to hold Filenames.
  * @param includedFile Pointer to the file to obtain the full path from.
  * @param line Current line number the lexer is on.
  * @param fileIdx Current file table index of the file
  * @returns it 0 if successful 1 if there was an error.
  **/
-int addFileToFileTable(struct OPTIONS* sOptions, struct FILE_TABLE* sFileTable, char** includedFile, int line, int fileIdx);
+int addFileToFileTable(struct TOKENIZER_CONFIG* tokenizerConfig, struct FILE_TABLE* sFileTable, char** includedFile, int line, int fileIdx);
 
 #endif

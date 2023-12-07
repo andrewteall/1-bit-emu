@@ -18,7 +18,7 @@ OUT_FILE = basm
 basm:
 	if [ ! -d $(BIN_DIR) ]; then mkdir -p $(BIN_DIR);fi
 	gcc $(CFLAGS)  $(INCLUDE_DIRS) $(SRC_PATH)main.c $(SRC_PATH)basm.c $(SRC_PATH)parser.c \
-				$(SRC_PATH)lexer.c $(LIB_DIR)ulog.o -o $(BIN_DIR)$(OUT_FILE)
+				$(SRC_PATH)lexer.c $(SRC_PATH)utils.c $(SRC_PATH)token.c $(LIB_DIR)ulog.o -o $(BIN_DIR)$(OUT_FILE)
 
 basm-release:
 	if [ ! -d $(BIN_DIR) ]; then mkdir -p $(BIN_DIR);fi

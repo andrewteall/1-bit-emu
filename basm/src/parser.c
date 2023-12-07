@@ -1,9 +1,12 @@
+#include <stdio.h>
 #include <string.h>
 #include <limits.h> 
 #include <unistd.h>  // getcwd
 // #include <ctype.h>
 
 #include "parser.h"
+#include "utils.h"
+#include "token.h"
 #include "../../ulog/include/ulog.h"
 
 const char *mnenomicStrings2[] = {
