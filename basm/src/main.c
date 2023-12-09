@@ -39,8 +39,9 @@ int main(int argc, char* argv[]){
 		/*******************************************************************************************/
 		
 		/*******************************************************************************************/
+		char binaryArr[32768];
 		// Assemble the file
-		int binSize = assemble(&options, options.filename);
+		int binSize = assemble(&options, options.filename, binaryArr);
 		if (binSize == -1){
 			return 1;
 		}
@@ -49,40 +50,21 @@ int main(int argc, char* argv[]){
 		}
 
         /*******************************************************************************************/
-		
-		
-		
-		/*******************************************************************************************/
-		// Write buffer to Binary Array in order
-		if(options.align && binSize < options.alignValue){
-				binSize = options.alignValue;
-		}
-		char binaryArr[binSize];
-		
-		int byteWriteCounter = 0;
-		// for (int i=0;i<tokenArrayLength;i++){
-		// 	if (sTokenArray[i].size){
-		// 		writeByteToArray(binaryArr,&options,sTokenArray[i].address,sTokenArray[i].numericValue);
-		// 		byteWriteCounter += options.wordWidth;
-		// 	}
-		// }
-
-		/*******************************************************************************************/
 
 		/*******************************************************************************************/
 		//open file[s] | write binary to file[s] | close file[s]
 		if(options.splitFile){
 			// todo
 		} else {
-			writeFile(options.outFilePath,binaryArr,binSize);
-			ulog(INFO,"Wrote %i bytes",byteWriteCounter);
+			writeFile("bin/test.asm.bin",binaryArr,binSize);
+			ulog(INFO,"Wrote %i bytes",binSize);
 		}
 		/*******************************************************************************************/
 		
 		if(options.prettyPrint){
 			prettyPrintBytes(binaryArr,binSize-1);
 		}
-		printf("Wrote file to %s.\n",options.outFilePath);
+		printf("Wrote file to %s.\n","bin/test.asm.bin");
 		return 0;
     }
 }

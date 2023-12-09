@@ -8,36 +8,37 @@
 #include "utils.h"
 #include "../../ulog/include/ulog.h"
 
-int assemble(struct OPTIONS* options, char* filename){
+int assemble(struct OPTIONS* options, char* filename, char* binaryArr){
 	struct TOKEN tokenArray[MAX_NUM_TOKENS];
-	struct TOKENIZER_CONFIG tokenizerConfig;
-	tokenizerConfig.maxFileDepth = options->maxFileDepth;
-	tokenizerConfig.onlyTokenize = options->onlyTokenize;
 
-	int numTokens = tokenizeFile(&tokenizerConfig, filename, tokenArray);
+	int numTokens = tokenizeFile(filename, tokenArray, options->maxFileDepth);
+	if(options->onlyTokenize){
+		printTokens(tokenArray, numTokens);
+		return 0;
+	}
 
 /******************************************************************************/
 	/* Parse the Tokens generated */
 	int binSize = parseTokens(options, tokenArray, numTokens);
 	if (!binSize){
-		return 1;
+		return -1;
 	}
 /******************************************************************************/
 
 /*******************************************************************************************/
 	// Write buffer to Binary Array in order
-	// if(options->align && binSize < options->alignValue){
-	// 		binSize = options->alignValue;
-	// }
+	if(options->align && binSize < options->alignValue){
+			binSize = options->alignValue;
+	}
 	// char binaryArr[binSize];
 	
-	// int byteWriteCounter = 0;
-	// for (int i=0;i<tokenArrayLength;i++){
-	// 	if (tokenArray[i].size){
-	// 		writeByteToArray(binaryArr,options,tokenArray[i].address,tokenArray[i].numericValue);
-	// 		byteWriteCounter += options->wordWidth;
-	// 	}
-	// }
+	int byteWriteCounter = 0;
+	for (int i=0;i<numTokens;i++){
+		if (tokenArray[i].size){
+			writeByteToArray(binaryArr,options,tokenArray[i].address,tokenArray[i].numericValue);
+			byteWriteCounter += options->wordWidth;
+		}
+	}
 
 /*******************************************************************************************/
 
@@ -244,7 +245,7 @@ int parseCommandLine(struct OPTIONS* sOptions,int argc, char* argv[]){
 
 		// -o --outfile
 		if (!strcmp(argv[i],"-o") || !strcmp(argv[i],"--outfile")){
-			strcpy(sOptions->outFilePath,argv[i+1]);
+			sOptions->outFilePath = argv[i+1];
 			ulog(INFO,"Setting Output File name to %s",argv[i+1]);
 		}
 

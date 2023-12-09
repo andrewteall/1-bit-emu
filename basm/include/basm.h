@@ -14,10 +14,6 @@
 	#define MAX_LABEL_COUNT 1024
 #endif
 
-#ifndef PATH_MAX
-	#define PATH_MAX 4096
-#endif
-
 #ifndef LITTLE_ENDIAN
 	#define LITTLE_ENDIAN 0
 #endif
@@ -37,7 +33,7 @@ enum mnenomic {NOPO,LD,LDC,AND,ANDC,OR,ORC,XNOR,STO,STOC,IEN,OEN,JMP,RTN,SKZ,NOP
 
 struct OPTIONS {
 	char* filename;
-	char  outFilePath[PATH_MAX];
+	char*  outFilePath;
 	int   endianess;
 	int   instructionWidth;
 	int   addressWidth;
@@ -62,7 +58,7 @@ int  writeByteToArray(char* , struct OPTIONS* , int , int );
 void prettyPrintBytes(char* , int );
 
 
-int assemble(struct OPTIONS* sOptions, char* filename);
+int assemble(struct OPTIONS* sOptions, char* filename, char* binArr);
 
 void printHelp(void);
 void setDefaultOptions(struct OPTIONS* options);
