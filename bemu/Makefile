@@ -16,9 +16,9 @@ OUT_FILE = bemu
 
 bemu:
 	if [ ! -d $(BIN_DIR) ]; then mkdir -p $(BIN_DIR);fi
-	gcc $(CFLAGS) $(INCLUDE_DIRS) $(SRC_PATH)MC14500.c $(SRC_PATH)instructions.c $(SRC_PATH)IODevice.c \
+	gcc $(CFLAGS) $(INCLUDE_DIRS) $(SRC_PATH)MC14500.c  $(SRC_PATH)IODevice.c \
 				$(SRC_PATH)main.c $(SRC_PATH)debugger.c $(SRC_PATH)MCSystem.c $(SRC_PATH)MCUtils.c $(LIB_DIR)ulog.o \
-				-o $(BIN_DIR)$(OUT_FILE)
+				-o $(BIN_DIR)$(OUT_FILE) -lncurses
 
 
 bemu-release:

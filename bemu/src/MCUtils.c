@@ -10,7 +10,8 @@
 /*****************************************************************************/
 /********************************** Utils ************************************/
 /*****************************************************************************/
-
+const char* mnenomicStrings4[] = { "NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF"};
+const char* pinActionsStrings3[] = {"NONE","JUMP","JSR","RET","JSRS","RETS","HLT","RES","NULL"};
 /**
  * @brief Prints System Program Counter and current Address as well as Register
  * 		  and Pin information of the ICU. 
@@ -21,7 +22,7 @@
 void printSystemInfo(uint16_t pc, uint32_t address, struct MC14500* icu){
 	printf("PC = 0x%02x  Inst = %4s(0x%02x)  Addr = 0x%02x  LU = %i  RR = %i  IEN/OEN = %i/%i  " \
 			"Write: %i  Data: %i  Skip Next: %i  JROF: %i%i%i%i\n",
-			pc,mnenomicStrings[icu->instruction],icu->instruction,address,icu->logicUnit,icu->resultsRegister,icu->ienRegister, \
+			pc,mnenomicStrings4[icu->instruction],icu->instruction,address,icu->logicUnit,icu->resultsRegister,icu->ienRegister, \
 			icu->oenRegister, icu->writePin,icu->dataPin,icu->skipRegister,icu->jmpPin,icu->rtnPin,icu->flagOPin,icu->flagFPin);
 }
 
@@ -318,26 +319,26 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 		 // FIXME: Checking second arg value
 		if (!strcmp(argv[i],"-m") || !strcmp(argv[i],"--map-pin")){
 			if (!strcmp(argv[i+1],"j") || !strcmp(argv[i+1],"J")){
-				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
-					if(!strcmp(argv[i+2],pinActionsStrings[j])){
+				for(int j=0; strcmp(pinActionsStrings3[j],"NULL");j++){
+					if(!strcmp(argv[i+2],pinActionsStrings3[j])){
 						 sOptions->pinHandles.jmpPinHandler = j;
 					}
 				}
 			} else if (!strcmp(argv[i+1],"r") || !strcmp(argv[i+1],"R")){
-				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
-					if(!strcmp(argv[i+2],pinActionsStrings[j])){
+				for(int j=0; strcmp(pinActionsStrings3[j],"NULL");j++){
+					if(!strcmp(argv[i+2],pinActionsStrings3[j])){
 						 sOptions->pinHandles.rtnPinHandler = j;
 					}
 				}
 			} else if (!strcmp(argv[i+1],"o") || !strcmp(argv[i+1],"O")){
-				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
-					if(!strcmp(argv[i+2],pinActionsStrings[j])){
+				for(int j=0; strcmp(pinActionsStrings3[j],"NULL");j++){
+					if(!strcmp(argv[i+2],pinActionsStrings3[j])){
 						 sOptions->pinHandles.flagOPinHandler = j;
 					}
 				}
 			} else if (!strcmp(argv[i+1],"f") || !strcmp(argv[i+1],"F")){
-				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
-					if(!strcmp(argv[i+2],pinActionsStrings[j])){
+				for(int j=0; strcmp(pinActionsStrings3[j],"NULL");j++){
+					if(!strcmp(argv[i+2],pinActionsStrings3[j])){
 						 sOptions->pinHandles.flagFPinHandler = j;
 					}
 				}

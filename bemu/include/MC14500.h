@@ -4,7 +4,7 @@
 #include <inttypes.h>
 
 enum instructions {NOPO,LD,LDC,AND,ANDC,OR,ORC,XNOR,STO,STOC,IEN,OEN,JMP,RTN,SKZ,NOPF,};
-const char* mnenomicStrings[16];
+// const char* mnenomicStrings[16];
 
 /**
  * @brief Potential Status of the ICU:CREATED,STOPPED,SINGLE,RUNNING,DESTROYED.

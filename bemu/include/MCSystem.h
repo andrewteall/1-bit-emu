@@ -14,7 +14,6 @@
 #endif
 
 enum pinActions {NONE,JUMP,JSR,RET,JSRS,RETS,HLT,RES,};
-const char* pinActionsStrings[9];
 
 /**
  * @brief Determines if a User Pin is high and then executes the defined 

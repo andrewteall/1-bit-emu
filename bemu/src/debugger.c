@@ -6,6 +6,9 @@
 #include "IODevice.h"
 #include "../../ulog/include/ulog.h"
 
+const char* mnenomicStrings3[] = { "NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF"};
+const char* pinActionsStrings4[] = {"NONE","JUMP","JSR","RET","JSRS","RETS","HLT","RES","NULL"};
+
 int startDebugger(struct OPTIONS* sOptions){
     int err = 0;
     setCursesMode(1);
@@ -156,9 +159,9 @@ void drawScreen(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct M
     printw("=====================================================\n");
     printw("PC: 0x%02x  Inst: %4s(0x%02x)  Addr: 0x%02x    SP: 0x%02x\n\nLU: %i     RR: %i          IEN/OEN = %i/%i " \
 					"   Write: %i\n\nData: %i   Skip Next: %i      JROF: %i%i%i%i    Map: %s\n",
-                    pc,mnenomicStrings[icu->instruction],icu->instruction,address,*sp, icu->logicUnit,icu->resultsRegister, \
+                    pc,mnenomicStrings3[icu->instruction],icu->instruction,address,*sp, icu->logicUnit,icu->resultsRegister, \
                     icu->ienRegister,icu->oenRegister,icu->writePin,icu->dataPin,icu->skipRegister,icu->jmpPin,icu->rtnPin, \
-                    icu->flagOPin,icu->flagFPin, pinActionsStrings[selectPinAndHandler(icu,&sOptions->pinHandles)]);
+                    icu->flagOPin,icu->flagFPin, pinActionsStrings4[selectPinAndHandler(icu,&sOptions->pinHandles)]);
 
 
     printStack(sOptions,53,7,stack,sp);
@@ -197,10 +200,10 @@ void drawScreen(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct M
          mvprintw(execY,execX," ");
         if(pc == idx){
             attrset(COLOR_PAIR(1));
-            printw("% 4s %4x",mnenomicStrings[instruction],romAddress);
+            printw("%4s %4x",mnenomicStrings3[instruction],romAddress);
             attroff(COLOR_PAIR(1));
         }else{
-            printw("% 4s %4x",mnenomicStrings[instruction],romAddress);
+            printw("%4s %4x",mnenomicStrings3[instruction],romAddress);
         }
         idx += sOptions->wordWidth;
         execY++;
