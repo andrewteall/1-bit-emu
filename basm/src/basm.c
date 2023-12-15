@@ -335,21 +335,21 @@ int parseCommandLine(struct OPTIONS* sOptions,int argc, char* argv[]){
 void printHelp(){
     printf("Usage: basm [options] file\n");
     printf("Options:\n");
-	printf(" -a N,         --align N                    Align or pad the binary with 0 to a specified size N.\n");
+    printf(" -a N,         --align N                    Align or pad the binary with 0 to a specified size N.\n");
     printf("-ap N,         --address-position N         Sets the position of the address within the memory from the MSB. Default: 4\n");
-	printf("-aw N,         --address-width N            Set the width in bits of the address. Default: 4\n");
+    printf("-aw N,         --address-width N            Set the width in bits of the address. Default: 4\n");
     printf(" -e [L|B],     --endianess [L|B]            Set endianess for output file. Default: Little Endian\n");
-	printf(" -f FILE,      --filename FILE              Specify to the file to be assembled. Otherwise the last argument is used.\n");
+    printf(" -f FILE,      --filename FILE              Specify to the file to be assembled. Otherwise the last argument is used.\n");
     printf(" -h,           --help                       Print this message and exit.\n");
-	printf("-ip N,         --instruction-position N     Sets the position of the instruction within the memory from the MSB. Default: 0\n");
-	printf("-iw N,         --instruction-width N        Set the width in bits of the instruction. Default: 4\n");
-	printf(" -l,           --lable-table                Print Label Table.\n");
-	printf(" -m N, 	       --max-include-depth N	    Maximum depth of files that can be included. Default: 10\n");
-    printf(" -o FILE,      --outfile FILE	            Specify output file. Default: $file.bin\n");
-	printf("               --print-parsed               Prints tokens after parsing.\n");
-	printf(" -p,           --pretty-print               Pretty print binary file at completion.\n");
+    printf("-ip N,         --instruction-position N     Sets the position of the instruction within the memory from the MSB. Default: 0\n");
+    printf("-iw N,         --instruction-width N        Set the width in bits of the instruction. Default: 4\n");
+    printf(" -l,           --lable-table                Print Label Table.\n");
+    printf(" -m N,         --max-include-depth N        Maximum depth of files that can be included. Default: 10\n");
+    printf(" -o FILE,      --outfile FILE               Specify output file. Default: $file.bin\n");
+    printf("               --print-parsed               Prints tokens after parsing.\n");
+    printf(" -p,           --pretty-print               Pretty print binary file at completion.\n");
     printf(" -s,           --split-file                 Makes two seperate files one with Opcodes and one with Operands.\n");
-	printf(" -t,           --tokenize-only              Only read the file and generate tokens.\n");
-    printf(" -v N, 	       --v[vvvv]                    Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
+    printf(" -t,           --tokenize-only              Only read the file and generate tokens.\n");
+    printf(" -v N,         --v[vvvv]                    Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
     printf("\n");
 }
