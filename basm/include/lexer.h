@@ -7,11 +7,6 @@
 	#define MAX_FILE_INCLUDES 64
 #endif
 
-#ifndef MAX_NUM_TOKENS
-	#define MAX_NUM_TOKENS 16384
-#endif
-
-
 struct TOKENIZER_CONFIG {
 	int includedFileDepth;
 	int maxFileDepth;

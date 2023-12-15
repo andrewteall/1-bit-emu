@@ -7,7 +7,8 @@
 #include "token.h"
 #include "ulog.h"
 
-const int delimeterList[] = {' ', '\t', '\n', EOF, ':','=','+', '-', '*', 0};
+const int tokenDelimeterList[] = {' ', '\t', '\n', EOF, ':','=','+', '-', '*', 0};
+const int statmentDelimeterList[] = {'\n', EOF, 0};
 
 const char *mnenomicStrings[] = {
 			"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","END"};
@@ -17,8 +18,8 @@ const char *directiveStrings[] = {"ORG","REMAP","SUB", "END_S","SUBROUTINE","END
 const char *labelModStrings[] = {"+","-","*","END"};
 
 int isTokenDelimeter(int c){
-	for(int i=0; delimeterList[i] != 0;i++){
-		if(c == delimeterList[i]){
+	for(int i=0; tokenDelimeterList[i] != 0;i++){
+		if(c == tokenDelimeterList[i]){
 			return 1;
 		}
 	}
@@ -316,6 +317,3 @@ int tokenizeFile(char* filename, struct TOKEN* tokenArray, int maxIncludeFileDep
 	}
 	return tokenArrayLength;
 }
-
-
-
