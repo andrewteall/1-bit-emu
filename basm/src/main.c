@@ -54,7 +54,7 @@ int main(int argc, char* argv[]){
 			// todo
 		} else {
 			writeFile("bin/test.asm.bin",binaryArr,binSize);
-			printf("Wrote %i bytes",binSize);
+			printf("Wrote %i bytes\n",binSize);
 		}
 		/*******************************************************************************************/
 		
