@@ -22,7 +22,7 @@
 int main(int argc, char* argv[]){
     if (argc == 1){
 		printHelp();
-        printf("ERROR: Filename to open must be specified.");
+        printf("ERROR: Filename to open must be specified.\n");
 		return 1;
 	} else {
 		struct OPTIONS options;

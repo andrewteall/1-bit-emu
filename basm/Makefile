@@ -10,7 +10,7 @@ BIN_DIR = ../bin/
 LIB_DIR = ../lib/
 
 SRC_PATH = src/
-INCLUDE_DIRS = -Iinclude/
+INCLUDE_DIRS = -Iinclude/ -I../ulog/include/
 TEST_PATH = test/
 
 OUT_FILE = basm

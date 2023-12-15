@@ -6,7 +6,7 @@
 #include "parser.h"
 #include "token.h"
 #include "utils.h"
-#include "../../ulog/include/ulog.h"
+#include "ulog.h"
 
 int assemble(struct OPTIONS* options, char* filename, char* binaryArr){
 	struct TOKEN tokenArray[MAX_NUM_TOKENS];

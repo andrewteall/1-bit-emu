@@ -7,7 +7,7 @@
 #include "parser.h"
 #include "utils.h"
 #include "token.h"
-#include "../../ulog/include/ulog.h"
+#include "ulog.h"
 
 const char *mnenomicStrings2[] = {
 	"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","NULL"};

@@ -5,7 +5,7 @@
 #include "lexer.h"
 #include "utils.h"
 #include "token.h"
-#include "../../ulog/include/ulog.h"
+#include "ulog.h"
 
 const int delimeterList[] = {' ', '\t', '\n', EOF, ':','=','+', '-', '*', 0};
 
