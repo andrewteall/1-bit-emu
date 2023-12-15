@@ -1,8 +1,6 @@
 #include <stdio.h>
 
 #include "basm.h"
-#include "parser.h"
-#include "../../ulog/include/ulog.h"
 
 // TODO: Handle Split file option
 
@@ -24,7 +22,7 @@
 int main(int argc, char* argv[]){
     if (argc == 1){
 		printHelp();
-        ulog(ERROR,"Filename to open must be specified. Exiting now");
+        printf("ERROR: Filename to open must be specified.");
 		return 1;
 	} else {
 		struct OPTIONS options;
@@ -35,7 +33,6 @@ int main(int argc, char* argv[]){
 		if(parseCommandLine(&options,argc,argv)){
 			return 1;
 		}
-
 		/*******************************************************************************************/
 		
 		/*******************************************************************************************/
@@ -57,7 +54,7 @@ int main(int argc, char* argv[]){
 			// todo
 		} else {
 			writeFile("bin/test.asm.bin",binaryArr,binSize);
-			ulog(INFO,"Wrote %i bytes",binSize);
+			printf("Wrote %i bytes",binSize);
 		}
 		/*******************************************************************************************/
 		
