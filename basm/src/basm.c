@@ -168,15 +168,16 @@ int parseCommandLine(struct OPTIONS* sOptions,int argc, char* argv[]){
 		}
 
 		//-v --vvvv
-		if (!strcmp(argv[i],"-v") || !strcmp(argv[i],"--v") || !strcmp(argv[i],"--vv") \
-			|| !strcmp(argv[i],"--vvv") || !strcmp(argv[i],"--vvvv")|| !strcmp(argv[i],"--vvvvv")){
+		if (!strcmp(argv[i],"-v") || !strcmp(argv[i],"--v") || !strcmp(argv[i],"--vv") || \
+			!strcmp(argv[i],"--vvv") || !strcmp(argv[i],"--vvvv") || !strcmp(argv[i],"--vvvvv") || \
+			!strcmp(argv[i],"--vvvvvv")){
 			int verbosity = 0;
 			if (!strcmp(argv[i],"-v")){
 				verbosity = str2num(argv[i+1]);
 			} else {
 				verbosity = strlen(argv[i])-2;
 			}
-			if (verbosity >= 0 && verbosity <= 5){
+			if (verbosity >= OFF && verbosity <= TRACE){
 				setLoggingLevel(verbosity);
 			} else {
 				ulog(ERROR,"Unsupported verbosity value");
