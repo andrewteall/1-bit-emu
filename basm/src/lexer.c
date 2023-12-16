@@ -7,8 +7,9 @@
 #include "token.h"
 #include "ulog.h"
 
-const int tokenDelimeterList[] = {' ', '\t', '\n', EOF, ':','=','+', '-', '*', 0};
+const int tokenDelimeterList[] = {' ', '\t', '\n', EOF, ':', '=', '+', '-', '*', 0};
 const int statmentDelimeterList[] = {'\n', EOF, 0};
+const int modifierDelimeterList[] = {'=', '+', '-', '*', 0};
 
 const char *mnenomicStrings[] = {
 			"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","END"};
@@ -17,16 +18,29 @@ const char *includeStrings[] = {"INCLUDE","END"};
 const char *directiveStrings[] = {"ORG","REMAP","SUB", "END_S","SUBROUTINE","END_SUBROUTINE","REP","REPEAT","REPEND","END"};
 const char *labelModStrings[] = {"+","-","*","END"};
 
-int isTokenDelimeter(int c){
-	for(int i=0; tokenDelimeterList[i] != 0;i++){
-		if(c == tokenDelimeterList[i]){
+int isDelimeter(int c, const int* delimiterList){
+	for(int i=0; delimiterList[i] != 0;i++){
+		if(c == delimiterList[i]){
 			return 1;
 		}
 	}
 	return 0;
 }
 
+int isTokenDelimeter(int c){
+	return isDelimeter(c, tokenDelimeterList);
+}
+
+int isStatementDelimeter(int c){
+	return isDelimeter(c, statmentDelimeterList);
+}
+
+int isModifierDelimeter(int c){
+	return isDelimeter(c, modifierDelimeterList);
+}
+
 int isIncludeStatement(struct TOKEN* sTokenArray, int sTokenArrayLength){
+	// FIXME: Check for NEWLINE before include
 	return (sTokenArray[sTokenArrayLength-3].type == INCLUDE && sTokenArray[sTokenArrayLength-1].type == NEWLINE);
 }
 
@@ -38,41 +52,6 @@ int containsMatch(const char* arrayToMatch[],char* tokenStr){
 		}
 	}
 	return 0;
-}
-
-int isNumber(char* tokenStr){
-	if ((tokenStr[0] == '0' && (tokenStr[1] == 'x' || tokenStr[1] == 'X')) || tokenStr[0] == '$'){
-		int startPos = 2;
-		if(tokenStr[0] == '$'){
-			startPos = 1;
-		}
-
-		for (int j = startPos; tokenStr[j] != '\0' ; j++){
-			if(!(((tokenStr[j] >= 'A') && (tokenStr[j] <= 'F')) || \
-			 ((tokenStr[j] >= 'a') && (tokenStr[j] <= 'f')) || \
-			 ((tokenStr[j] >= '0') && (tokenStr[j] <= '9')))){
-				return 0;
-			}
-		}
-
-	} else if ((tokenStr[0] == '0' && (tokenStr[1] == 'b' || tokenStr[1] == 'B')) || tokenStr[0] == '%'){
-		int startPos = 2;
-		if(tokenStr[0] == '%'){
-			startPos = 1;
-		}
-		for (int j = startPos; tokenStr[j] != 0 ; j++){
-			if(tokenStr[j] != '1' && tokenStr[j] != '0' ){
-				return 0;
-			}
-		}
-	} else {
-		for (int j = 0; tokenStr[j] != 0 ; j++){
-			if(tokenStr[j] < '0' || tokenStr[j] > '9'   ){
-				return 0;
-			}
-		}
-	}
-	return 1;
 }
 
 int determineTokenType(char* tokenStr){
@@ -88,7 +67,7 @@ int determineTokenType(char* tokenStr){
 		tokenType = INCLUDE;
 	} else if(containsMatch(directiveStrings,tokenStr)){
 		tokenType = DIRECTIVE;
-	} else if(isNumber(tokenStr)){
+	} else if(str2num(tokenStr) != -1){
 		tokenType = NUMBER;
 	} else if(*tokenStr == '\n' || !strcmp(tokenStr,"\\N") || (tokenStr[0] == 255 && tokenStr[255])){
 		tokenType = NEWLINE;
@@ -107,7 +86,7 @@ void printFileTable(struct FILE_TABLE* sFileTable){
 	printf("================================= File Table ===================================\n");
 	printf("| %s %28s %44s\n","Idx","Filename","Parent Idx");
 	for(int i=0; i<sFileTable->length; i++){
-		printf("| %2i: %32s %*i\n",i,sFileTable->table[i],(int)(70-strlen(sFileTable->table[i])),sFileTable->parentIdx[i]);
+		printf("| %2i: %32s %*i\n", i, sFileTable->table[i], (int)(70-strlen(sFileTable->table[i])), sFileTable->parentIdx[i]);
 	}
 	printf("================================================================================\n\n");
 }
@@ -171,56 +150,24 @@ int addFileToFileTable(struct TOKENIZER_CONFIG* tokenizerConfig, struct FILE_TAB
 	}
 }
 
-int addNewTokenToArray(struct TOKEN* sTokenArray, int* sTokenArrayLength, char* tokenStr, char* filename, int* lineNumber){
+int addNewTokenToArray(struct TOKEN* sTokenArray, int* sTokenArrayLength, char* tokenStr, char* filename, int lineNumber){
 	if(*sTokenArrayLength == MAX_NUM_TOKENS){
-		ulog(ERROR,"Maximum number of tokens exceeded: %i in file %s:%i", *sTokenArrayLength, filename, *lineNumber);
+		ulog(ERROR,"Maximum number of tokens exceeded: %i in file %s:%i", *sTokenArrayLength, filename, lineNumber);
 		return 1;
 	} else {
-		sTokenArray[*sTokenArrayLength].type = determineTokenType(tokenStr);
+		if(strcmp(tokenStr, "\\n")){
+			sTokenArray[*sTokenArrayLength].type = determineTokenType(tokenStr);
+		} else {
+			sTokenArray[*sTokenArrayLength].type = NEWLINE;
+		}
 		strcpy(sTokenArray[*sTokenArrayLength].stringValue, tokenStr);
 		sTokenArray[*sTokenArrayLength].filename = filename;
-		sTokenArray[*sTokenArrayLength].lineNumber = *lineNumber;
+		sTokenArray[*sTokenArrayLength].lineNumber = lineNumber;
 		
-		if(sTokenArray[*sTokenArrayLength].type == NEWLINE){
-			(*lineNumber)++;
-		}
 		(*sTokenArrayLength)++;
 
 		return 0;
 	}
-}
-
-int addCharToTokenStrBuffer(int c, char* tokenStrBuffer,int tokenStrBufferLength){
-	// If c is not a tab or space add it to the token string buffer
-	if(c != ' ' && c != '\t' && c != ':'){
-		// Make sure we haven't exceded our buffer length
-		if(tokenStrBufferLength < MAX_TOKEN_LENGTH){
-			// if c is EOF or newline then escape it to its own string
-			if(c == EOF || c == '\n'){
-				strcpy(tokenStrBuffer, "\\n"); // EOF becomes a newline
-				tokenStrBufferLength = strlen(tokenStrBuffer);
-			} else {
-				// Otherwise just add c to the buffer
-				tokenStrBuffer[tokenStrBufferLength++] = c;
-			}
-		} else {
-			return -1;
-		}
-	}
-	return tokenStrBufferLength;
-}
-
-int determineNextChar(FILE* file, int c){
-	// Check to see if c is a delimeter we also need to re-process
-	if (c == '\n' || c == EOF || c == '=' || c == '+' || c == '-' || c == '*') {
-		// Set c to be a blank delimeter to reprocess the delimeter as a token
-		c = ' ';
-	} else {
-		// If c is a not delimeter we need to re-process
-		// Get next char in the file
-		c = fgetc(file);
-	}
-	return c;
 }
 
 int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArray, \
@@ -228,7 +175,6 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArra
 	int  error = 0;
 	int  commentFlag = 0;
 	int  lineNumber = 1;
-	int  eofProcessingCounter = 0;
 	int  tokenStrBufferLength = 0;
 	char tokenStrBuffer[MAX_TOKEN_LENGTH] = {'\0'};
 	int  fileIdx = sFileTable->length;
@@ -242,13 +188,20 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArra
 		ulog(ERROR,"Error Opening File: %s",filename);
 		return 1;
 	}
+	
+	int c;
+	while(c != EOF && !error){
+		// Get the next character
+		c = fgetc(sourceFile);
 
-	int c = ' '; // Init c to a delimiter so we fall through to grab a char and start processing
-	while(eofProcessingCounter < 3){ // We need to make 2 more passes once we hit EOF
+		// Turn the comment flag on or off depending on if we hit a comment
+		commentFlag = (c != '\n' && c != EOF && (c == ';' || commentFlag ));
+
 		if(!commentFlag){
 			if(isTokenDelimeter(c) && tokenStrBufferLength){
 				// Add Token to TokenArray
-				error = addNewTokenToArray(sTokenArray,sTokenArrayLength,tokenStrBuffer,filename,&lineNumber);
+				ulog(TRACE,"Adding token string: %s", tokenStrBuffer);
+				error = addNewTokenToArray(sTokenArray, sTokenArrayLength, tokenStrBuffer, filename, lineNumber);
 				if(error){
 					break;
 				}
@@ -256,10 +209,34 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArra
 				// Clear token string and index
 				memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
 				tokenStrBufferLength = 0;
+			}
 
+			if(isModifierDelimeter(c)){
+				tokenStrBuffer[0] = c;
+				tokenStrBuffer[1] = '\0';
+				ulog(TRACE,"Adding token string: %s", tokenStrBuffer);
+				error = addNewTokenToArray(sTokenArray, sTokenArrayLength, tokenStrBuffer, filename, lineNumber);
+				if(error){
+					break;
+				}
+				
+				// Clear token string and index
+				memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
+				tokenStrBufferLength = 0;
+			}
+
+			if(isStatementDelimeter(c)){
+				// Add Token to TokenArray
+				ulog(TRACE,"Adding token string: %s", "\\n");
+				error = addNewTokenToArray(sTokenArray, sTokenArrayLength, "\\n", filename, lineNumber);
+				lineNumber++;
+				if(error){
+					break;
+				}
+				
 				if(isIncludeStatement(sTokenArray, *sTokenArrayLength) && !error){  // Check for Include Statement
 					char* includedFilename = sTokenArray[*sTokenArrayLength-2].stringValue;
-					error = addFileToFileTable(tokenizerConfig, sFileTable, &includedFilename,lineNumber,fileIdx);
+					error = addFileToFileTable(tokenizerConfig, sFileTable, &includedFilename, lineNumber, fileIdx);
 					if(error){
 						break;
 					}
@@ -270,25 +247,17 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArra
 					}
 					tokenizerConfig->includedFileDepth--;
 				}
+			} 
+			
+			if(!isTokenDelimeter(c) && !isModifierDelimeter(c) && !isStatementDelimeter(c)) {
+				tokenStrBuffer[tokenStrBufferLength++] = c;
+				if(tokenStrBufferLength >= MAX_TOKEN_LENGTH){
+					ulog(ERROR,"Size of the Token String excedes its maximum length: %i in File %s:%i", \
+								tokenStrBufferLength,filename,lineNumber);	
+					error = 1;
+					break;
+				}
 			}
-
-			tokenStrBufferLength = addCharToTokenStrBuffer(c, tokenStrBuffer, tokenStrBufferLength);
-			if(tokenStrBufferLength == -1){
-				ulog(ERROR,"Size of the Token String excedes its maximum length: %i in File %s:%i", \
-							tokenStrBufferLength,filename,lineNumber);	
-				error = 1;
-				break;
-			}
-		}
-	
-		// Get the next char depending on if we need to re-process the delimeter
-		c = determineNextChar(sourceFile, c);
-		// Turn the comment flag on or off depending on if we hit a comment
-		commentFlag = (c != '\n' && c != EOF && (c == ';' || commentFlag ));
-		
-		// Check for EOF or if we are already doing the EOF processing
-		if(c == EOF || eofProcessingCounter){
-			eofProcessingCounter++;
 		}
 	}
 	
@@ -298,6 +267,7 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArra
 	
     return error;
 }
+
 
 int tokenizeFile(char* filename, struct TOKEN* tokenArray, int maxIncludeFileDepth){
 	int tokenArrayLength;
