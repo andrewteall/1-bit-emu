@@ -21,6 +21,14 @@ struct TOKEN {
 	char* filename;
 };
 
-void printTokens(struct TOKEN* sTokenArray, int sTokenArrayLength);
+struct TOKEN_LIST {
+	struct TOKEN list[MAX_NUM_TOKENS];
+	int numTokens;
+	struct TOKEN* nextToken;
+};
+
+void printTokens(struct TOKEN_LIST* tokenList);
+
+int addNewToken(struct TOKEN_LIST* tokenList, char* tokenStr, int type, char* filename, int lineNumber);
 
 #endif

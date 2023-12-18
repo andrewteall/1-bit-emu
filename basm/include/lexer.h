@@ -7,29 +7,29 @@
 	#define MAX_FILE_INCLUDES 64
 #endif
 
-struct TOKENIZER_CONFIG {
-	int includedFileDepth;
-	int maxFileDepth;
-};
-
 struct FILE_TABLE {
 	char table[MAX_FILE_INCLUDES][4096]; // Change back to PATH_MAX
 	int parentIdx[MAX_FILE_INCLUDES];
 	int length;
 };
 
+struct TOKENIZER_CONFIG {
+	int includedFileDepth;
+	int maxFileDepth;
+	struct FILE_TABLE fileTable;
+};
+
+void printFileTable(struct FILE_TABLE* sFileTable);
 
 /**
  * Opens and Reads a file, filename, tokenizes all elements within, and 
- * stores the tokens in tokenBuffer.
- * @param tokenizerConfig Configuration for the lexer.
- * @param sTokenArray Array used to store tokens read from file.
- * @param sFileTable Array to store filenames in as they are encountered.
- * @param tokenArrayLength Index to put the next token generated.
- 
- * @returns int Size of the Token Buffer.
+ * stores the tokens in tokenList.
+ * @param filename The filename to be tokenized.
+ * @param tokenList Token_List struct to store tokens read from file.
+ * @param tokenizerConfig A Pointer to the tokenizer configuration.
+ * @returns int The number of tokens read from the file.
  **/
-int tokenizeFile(char* filename, struct TOKEN* sTokenArray, int maxIncludeFileDepth);
+int tokenizeFile(char* filename, struct TOKEN_LIST* tokenList, struct TOKENIZER_CONFIG* tokenizerConfig);
 
 
 

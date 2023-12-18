@@ -9,40 +9,44 @@
 #include "ulog.h"
 
 int assemble(struct OPTIONS* options, char* filename, char* binaryArr){
-	struct TOKEN tokenArray[MAX_NUM_TOKENS];
+	struct TOKEN_LIST tokenList;
+	struct TOKENIZER_CONFIG tokenizerConfig;
+	tokenizerConfig.maxFileDepth = options->maxFileDepth;
 
-	int numTokens = tokenizeFile(filename, tokenArray, options->maxFileDepth);
+	int numTokens = tokenizeFile(filename, &tokenList, &tokenizerConfig);
 	if(options->onlyTokenize){
-		printTokens(tokenArray, numTokens);
+		printFileTable(&tokenizerConfig.fileTable);
+		printTokens(&tokenList);
 		return 0;
 	}
 
 /******************************************************************************/
-	/* Parse the Tokens generated */
-	int binSize = parseTokens(options, tokenArray, numTokens);
-	if (!binSize){
-		return -1;
-	}
+	// /* Parse the Tokens generated */
+	// int binSize = parseTokens(options, &tokenList, numTokens);
+	// if (!binSize){
+	// 	return -1;
+	// }
 /******************************************************************************/
 
 /*******************************************************************************************/
 	// Write buffer to Binary Array in order
-	if(options->align && binSize < options->alignValue){
-			binSize = options->alignValue;
-	}
+	// if(options->align && binSize < options->alignValue){
+	// 		binSize = options->alignValue;
+	// }
 	// char binaryArr[binSize];
 	
-	int byteWriteCounter = 0;
-	for (int i=0;i<numTokens;i++){
-		if (tokenArray[i].size){
-			writeByteToArray(binaryArr,options,tokenArray[i].address,tokenArray[i].numericValue);
-			byteWriteCounter += options->wordWidth;
-		}
-	}
+	// int byteWriteCounter = 0;
+	// for (int i=0;i<numTokens;i++){
+	// 	if (tokenList[i].size){
+	// 		writeByteToArray(binaryArr,options,tokenList[i].address,tokenList[i].numericValue);
+	// 		byteWriteCounter += options->wordWidth;
+	// 	}
+	// }
 
 /*******************************************************************************************/
 
-	return binSize;
+	// return binSize;
+	return numTokens;
 }
 
 int writeByteToArray(char* array, struct OPTIONS* options, int position, int value){

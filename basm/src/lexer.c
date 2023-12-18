@@ -3,13 +3,13 @@
 #include <string.h>
 
 #include "lexer.h"
-#include "utils.h"
 #include "token.h"
 #include "ulog.h"
+#include "utils.h"
 
 const int tokenDelimeterList[] = {' ', '\t', '\n', EOF, ':', '=', '+', '-', '*', 0};
 const int statmentDelimeterList[] = {'\n', EOF, 0};
-const int modifierDelimeterList[] = {'=', '+', '-', '*', 0};
+const int modifierList[] = {'=', '+', '-', '*', 0};
 
 const char *mnenomicStrings[] = {
 			"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","END"};
@@ -35,13 +35,13 @@ int isStatementDelimeter(int c){
 	return isDelimeter(c, statmentDelimeterList);
 }
 
-int isModifierDelimeter(int c){
-	return isDelimeter(c, modifierDelimeterList);
+int isModifier(int c){
+	return isDelimeter(c, modifierList);
 }
 
-int isIncludeStatement(struct TOKEN* sTokenArray, int sTokenArrayLength){
+int isIncludeStatement(struct TOKEN_LIST* tokenList){
 	// FIXME: Check for NEWLINE before include
-	return (sTokenArray[sTokenArrayLength-3].type == INCLUDE && sTokenArray[sTokenArrayLength-1].type == NEWLINE);
+	return (tokenList->list[tokenList->numTokens-3].type == INCLUDE && tokenList->list[tokenList->numTokens-1].type == NEWLINE);
 }
 
 int containsMatch(const char* arrayToMatch[],char* tokenStr){
@@ -59,7 +59,9 @@ int determineTokenType(char* tokenStr){
 	char tokenTmp[strlen(tokenStr)];
 	strcpy(tokenTmp,tokenStr);
 	
-	if(containsMatch(mnenomicStrings,tokenStr)){
+	if(*tokenStr == '\n' || !strcmp(tokenStr,"\\n") || !strcmp(tokenStr,"\\N")){
+		tokenType = NEWLINE;
+	} else if(containsMatch(mnenomicStrings,tokenStr)){
 		tokenType = MNENOMIC;
 	} else if(containsMatch(assignmentStrings,tokenStr)){
 		tokenType = ASSIGNMENT;
@@ -69,10 +71,7 @@ int determineTokenType(char* tokenStr){
 		tokenType = DIRECTIVE;
 	} else if(str2num(tokenStr) != -1){
 		tokenType = NUMBER;
-	} else if(*tokenStr == '\n' || !strcmp(tokenStr,"\\N") || (tokenStr[0] == 255 && tokenStr[255])){
-		tokenType = NEWLINE;
 	} else if(containsMatch(labelModStrings,tokenStr)){
-		strcpy(tokenStr,tokenTmp);
 		tokenType = LABEL_MOD;
 	} else {
 		strcpy(tokenStr,tokenTmp);
@@ -102,22 +101,22 @@ int hasCircularFileInclude(struct FILE_TABLE* sFileTable){
 	return 0;
 }
 
-int addFileToFileTable(struct TOKENIZER_CONFIG* tokenizerConfig, struct FILE_TABLE* sFileTable,char** includedFile, \
+int addFileToFileTable(struct TOKENIZER_CONFIG* tokenizerConfig, struct FILE_TABLE* fileTable, char** includedFile, \
 								int line,int fileIdx){
-	if (sFileTable->length == MAX_FILE_INCLUDES){
+	if (fileTable->length == MAX_FILE_INCLUDES){
 		ulog(ERROR,"Too many includes: %i Last Include: %s:%i",MAX_FILE_INCLUDES, \
-						sFileTable->table[sFileTable->parentIdx[sFileTable->length]-1],line-1);
+						fileTable->table[fileTable->parentIdx[fileTable->length]-1],line-1);
 		return 1;
 	} else if(tokenizerConfig->includedFileDepth == tokenizerConfig->maxFileDepth){
 		ulog(ERROR,"Too many nested includes %i: %s:%i  You can override this value with the -m flag", \
-						tokenizerConfig->maxFileDepth,sFileTable->table[fileIdx-1],line-1);
+						tokenizerConfig->maxFileDepth,fileTable->table[fileIdx-1],line-1);
 		return 1;
 	} else {
-		char* sourceFullPathFilename = sFileTable->table[sFileTable->length];
-		if(sFileTable->length == 0){
+		char* sourceFullPathFilename = fileTable->table[fileTable->length];
+		if(fileTable->length == 0){
 			realpath(*includedFile,sourceFullPathFilename);
 		} else {
-			sourceFullPathFilename = realpath(sFileTable->table[fileIdx-1], sourceFullPathFilename);
+			sourceFullPathFilename = realpath(fileTable->table[fileIdx-1], sourceFullPathFilename);
 			char* includedFilePtr = *includedFile;
 			do {
 				for(int i=strlen(sourceFullPathFilename)-1;sourceFullPathFilename[i] != '/'; i--){
@@ -131,18 +130,18 @@ int addFileToFileTable(struct TOKENIZER_CONFIG* tokenizerConfig, struct FILE_TAB
 					}
 				}
 			} while(includedFilePtr[0] == '.' && includedFilePtr[1] == '.' && includedFilePtr[2] == '/');
-			strcat(sFileTable->table[sFileTable->length],*includedFile);
+			strcat(fileTable->table[fileTable->length],*includedFile);
 		}
-		ulog(DEBUG,"Adding File to FileTable: %s at index %i",sourceFullPathFilename,sFileTable->length);
-		sFileTable->parentIdx[sFileTable->length] = fileIdx-1;
-		(sFileTable->length)++;
+		ulog(DEBUG,"Adding File to FileTable: %s at index %i",sourceFullPathFilename,fileTable->length);
+		fileTable->parentIdx[fileTable->length] = fileIdx-1;
+		(fileTable->length)++;
 
 		tokenizerConfig->includedFileDepth++;
 		*includedFile = sourceFullPathFilename;
-		if(hasCircularFileInclude(sFileTable)){
-			ulog(DEBUG,"File Table Length: %i  Included File Depth: %i",sFileTable->length,tokenizerConfig->includedFileDepth);
-			printFileTable(sFileTable);
-			ulog(ERROR,"Circular Include in file: %s:%i",sFileTable->table[sFileTable->parentIdx[sFileTable->length-1]],line-1);
+		if(hasCircularFileInclude(fileTable)){
+			ulog(DEBUG,"File Table Length: %i  Included File Depth: %i",fileTable->length,tokenizerConfig->includedFileDepth);
+			printFileTable(fileTable);
+			ulog(ERROR,"Circular Include in file: %s:%i",fileTable->table[fileTable->parentIdx[fileTable->length-1]],line-1);
 			
 			return 1;
 		}
@@ -150,35 +149,16 @@ int addFileToFileTable(struct TOKENIZER_CONFIG* tokenizerConfig, struct FILE_TAB
 	}
 }
 
-int addNewTokenToArray(struct TOKEN* sTokenArray, int* sTokenArrayLength, char* tokenStr, char* filename, int lineNumber){
-	if(*sTokenArrayLength == MAX_NUM_TOKENS){
-		ulog(ERROR,"Maximum number of tokens exceeded: %i in file %s:%i", *sTokenArrayLength, filename, lineNumber);
-		return 1;
-	} else {
-		if(strcmp(tokenStr, "\\n")){
-			sTokenArray[*sTokenArrayLength].type = determineTokenType(tokenStr);
-		} else {
-			sTokenArray[*sTokenArrayLength].type = NEWLINE;
-		}
-		strcpy(sTokenArray[*sTokenArrayLength].stringValue, tokenStr);
-		sTokenArray[*sTokenArrayLength].filename = filename;
-		sTokenArray[*sTokenArrayLength].lineNumber = lineNumber;
-		
-		(*sTokenArrayLength)++;
-
-		return 0;
-	}
-}
-
-int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArray, \
-					struct FILE_TABLE* sFileTable, int* sTokenArrayLength){
+int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN_LIST* tokenList){
 	int  error = 0;
 	int  commentFlag = 0;
 	int  lineNumber = 1;
+
 	int  tokenStrBufferLength = 0;
 	char tokenStrBuffer[MAX_TOKEN_LENGTH] = {'\0'};
-	int  fileIdx = sFileTable->length;
-	char* filename = sFileTable->table[fileIdx-1];
+	
+	int  fileIdx = tokenizerConfig->fileTable.length;
+	char* filename = tokenizerConfig->fileTable.table[fileIdx-1];
 
 	//open file
 	// TODO: Add where file is being opened from.
@@ -197,66 +177,66 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArra
 		// Turn the comment flag on or off depending on if we hit a comment
 		commentFlag = (c != '\n' && c != EOF && (c == ';' || commentFlag ));
 
-		if(!commentFlag){
-			if(isTokenDelimeter(c) && tokenStrBufferLength){
-				// Add Token to TokenArray
-				ulog(TRACE,"Adding token string: %s", tokenStrBuffer);
-				error = addNewTokenToArray(sTokenArray, sTokenArrayLength, tokenStrBuffer, filename, lineNumber);
-				if(error){
-					break;
-				}
-
-				// Clear token string and index
-				memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
-				tokenStrBufferLength = 0;
+		if(isTokenDelimeter(c) && tokenStrBufferLength && !commentFlag){
+			// Add Token to TokenArray
+			ulog(TRACE,"Adding token string: %s", tokenStrBuffer);
+			error = addNewToken(tokenList, tokenStrBuffer, determineTokenType(tokenStrBuffer), filename, lineNumber);
+			if(error){
+				break;
 			}
 
-			if(isModifierDelimeter(c)){
-				tokenStrBuffer[0] = c;
-				tokenStrBuffer[1] = '\0';
-				ulog(TRACE,"Adding token string: %s", tokenStrBuffer);
-				error = addNewTokenToArray(sTokenArray, sTokenArrayLength, tokenStrBuffer, filename, lineNumber);
-				if(error){
-					break;
-				}
-				
-				// Clear token string and index
-				memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
-				tokenStrBufferLength = 0;
-			}
+			// Clear token string and index
+			memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
+			tokenStrBufferLength = 0;
+		}
 
-			if(isStatementDelimeter(c)){
-				// Add Token to TokenArray
-				ulog(TRACE,"Adding token string: %s", "\\n");
-				error = addNewTokenToArray(sTokenArray, sTokenArrayLength, "\\n", filename, lineNumber);
-				lineNumber++;
-				if(error){
-					break;
-				}
-				
-				if(isIncludeStatement(sTokenArray, *sTokenArrayLength) && !error){  // Check for Include Statement
-					char* includedFilename = sTokenArray[*sTokenArrayLength-2].stringValue;
-					error = addFileToFileTable(tokenizerConfig, sFileTable, &includedFilename, lineNumber, fileIdx);
-					if(error){
-						break;
-					}
-					
-					error = tokenizer(tokenizerConfig,sTokenArray,sFileTable,sTokenArrayLength);
-					if(error){
-						break;
-					}
-					tokenizerConfig->includedFileDepth--;
-				}
-			} 
+		if(isModifier(c) && !commentFlag){
+			tokenStrBuffer[0] = c;
+			tokenStrBuffer[1] = '\0';
+			// Add Token to TokenArray
+			ulog(TRACE,"Adding token string: %s", tokenStrBuffer);
+			error = addNewToken(tokenList, tokenStrBuffer, determineTokenType(tokenStrBuffer), filename, lineNumber);
+			if(error){
+				break;
+			}
 			
-			if(!isTokenDelimeter(c) && !isModifierDelimeter(c) && !isStatementDelimeter(c)) {
-				tokenStrBuffer[tokenStrBufferLength++] = c;
-				if(tokenStrBufferLength >= MAX_TOKEN_LENGTH){
-					ulog(ERROR,"Size of the Token String excedes its maximum length: %i in File %s:%i", \
-								tokenStrBufferLength,filename,lineNumber);	
-					error = 1;
+			// Clear token string and index
+			memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
+			tokenStrBufferLength = 0;
+		}
+
+		if(isStatementDelimeter(c) && !commentFlag){
+			// Add Token to TokenArray
+			ulog(TRACE,"Adding token string: %s", "\\n");
+			error = addNewToken(tokenList, "\\n", determineTokenType("\\n"), filename, lineNumber);
+			lineNumber++;
+			if(error){
+				break;
+			}
+			
+			// Check for Include Statement
+			if(isIncludeStatement(tokenList) && !error){  
+				char* includedFilename = tokenList->list[tokenList->numTokens-2].stringValue;
+				error = addFileToFileTable(tokenizerConfig, &tokenizerConfig->fileTable, &includedFilename, lineNumber, fileIdx);
+				if(error){
 					break;
 				}
+				
+				error = tokenizer(tokenizerConfig, tokenList);
+				if(error){
+					break;
+				}
+				tokenizerConfig->includedFileDepth--;
+			}
+		} 
+		
+		if(!isTokenDelimeter(c) && !isModifier(c) && !isStatementDelimeter(c) && !commentFlag) {
+			tokenStrBuffer[tokenStrBufferLength++] = c;
+			if(tokenStrBufferLength >= MAX_TOKEN_LENGTH){
+				ulog(ERROR,"Size of the Token String excedes its maximum length: %i in File %s:%i", \
+							tokenStrBufferLength,filename,lineNumber);	
+				error = 1;
+				break;
 			}
 		}
 	}
@@ -268,22 +248,19 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN* sTokenArra
     return error;
 }
 
+int tokenizeFile(char* filename, struct TOKEN_LIST* tokenList, struct TOKENIZER_CONFIG* tokenizerConfig){
+	// Initialize Tokenizer Config 
+	tokenizerConfig->includedFileDepth = 0;
+	tokenizerConfig->fileTable.length = 0;
+	tokenList->numTokens = 0;
+	tokenList->nextToken = tokenList->list;
 
-int tokenizeFile(char* filename, struct TOKEN* tokenArray, int maxIncludeFileDepth){
-	int tokenArrayLength;
-	struct FILE_TABLE fileTable;
-	fileTable.length = 0;
-	struct TOKENIZER_CONFIG tokenizerConfig;
-	tokenizerConfig.includedFileDepth = 0;
-	tokenizerConfig.maxFileDepth = maxIncludeFileDepth;
-
-	// Add the first file to the filetable if the table is empty
-	addFileToFileTable(&tokenizerConfig, &fileTable, &filename, 0, 0);
+	// Add the first file to the filetable
+	addFileToFileTable(tokenizerConfig, &tokenizerConfig->fileTable, &filename, 0, 0);
 	
 	ulog(INFO,"Starting Tokenizer");
-	tokenizer(&tokenizerConfig, tokenArray, &fileTable, &tokenArrayLength);
-	if(getLoggingLevel() >= DEBUG){
-		printFileTable(&fileTable);
-	}
-	return tokenArrayLength;
+	tokenizer(tokenizerConfig, tokenList);
+	
+	ulog(INFO,"Generated %i Tokens", tokenList->numTokens);
+	return tokenList->numTokens;
 }

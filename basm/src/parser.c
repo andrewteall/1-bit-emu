@@ -306,7 +306,7 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 	}
 
 	if(sOptions->parsePrint){
-		printTokens(tokenArr,tokenizedArraySize);
+		// printTokens(tokenArr,tokenizedArraySize);
 	}
 	
 	if(error){
