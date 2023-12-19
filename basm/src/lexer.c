@@ -7,6 +7,7 @@
 #include "ulog.h"
 #include "utils.h"
 
+// TODO: Handle \r
 const int tokenDelimeterList[] = {' ', '\t', '\n', EOF, ':', '=', '+', '-', '*', 0};
 const int statmentDelimeterList[] = {'\n', EOF, 0};
 const int modifierList[] = {'=', '+', '-', '*', 0};
@@ -139,9 +140,9 @@ int addFileToFileTable(struct TOKENIZER_CONFIG* tokenizerConfig, struct FILE_TAB
 		tokenizerConfig->includedFileDepth++;
 		*includedFile = sourceFullPathFilename;
 		if(hasCircularFileInclude(fileTable)){
-			ulog(DEBUG,"File Table Length: %i  Included File Depth: %i",fileTable->length,tokenizerConfig->includedFileDepth);
+			ulog(DEBUG,"File Table Length: %i  Included File Depth: %i", fileTable->length, tokenizerConfig->includedFileDepth);
 			printFileTable(fileTable);
-			ulog(ERROR,"Circular Include in file: %s:%i",fileTable->table[fileTable->parentIdx[fileTable->length-1]],line-1);
+			ulog(ERROR,"Circular Include in file: %s:%i", fileTable->table[fileTable->parentIdx[fileTable->length-1]], line-1);
 			
 			return 1;
 		}
@@ -161,7 +162,6 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN_LIST* token
 	char* filename = tokenizerConfig->fileTable.table[fileIdx-1];
 
 	//open file
-	// TODO: Add where file is being opened from.
 	ulog(DEBUG,"Opening File: %s",filename);
 	FILE* sourceFile = fopen(filename, "r");
 	if(sourceFile == NULL){
@@ -174,69 +174,72 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN_LIST* token
 		// Get the next character
 		c = fgetc(sourceFile);
 
-		// Turn the comment flag on or off depending on if we hit a comment
+		// Turn the comment flag on if c is a ';' or if the comment flag is
+		// already set. Turn the comment flag off if c is a newline or EOF.
 		commentFlag = (c != '\n' && c != EOF && (c == ';' || commentFlag ));
+		if(!commentFlag){
+			if(isTokenDelimeter(c) && tokenStrBufferLength){
+				// Add Token to TokenList
+				error = addNewToken(tokenList, tokenStrBuffer, determineTokenType(tokenStrBuffer), filename, lineNumber);
+				if(error){
+					break;
+				}
 
-		if(isTokenDelimeter(c) && tokenStrBufferLength && !commentFlag){
-			// Add Token to TokenArray
-			ulog(TRACE,"Adding token string: %s", tokenStrBuffer);
-			error = addNewToken(tokenList, tokenStrBuffer, determineTokenType(tokenStrBuffer), filename, lineNumber);
-			if(error){
-				break;
+				// Clear token string and index
+				memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
+				tokenStrBufferLength = 0;
 			}
 
-			// Clear token string and index
-			memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
-			tokenStrBufferLength = 0;
-		}
-
-		if(isModifier(c) && !commentFlag){
-			tokenStrBuffer[0] = c;
-			tokenStrBuffer[1] = '\0';
-			// Add Token to TokenArray
-			ulog(TRACE,"Adding token string: %s", tokenStrBuffer);
-			error = addNewToken(tokenList, tokenStrBuffer, determineTokenType(tokenStrBuffer), filename, lineNumber);
-			if(error){
-				break;
-			}
-			
-			// Clear token string and index
-			memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
-			tokenStrBufferLength = 0;
-		}
-
-		if(isStatementDelimeter(c) && !commentFlag){
-			// Add Token to TokenArray
-			ulog(TRACE,"Adding token string: %s", "\\n");
-			error = addNewToken(tokenList, "\\n", determineTokenType("\\n"), filename, lineNumber);
-			lineNumber++;
-			if(error){
-				break;
-			}
-			
-			// Check for Include Statement
-			if(isIncludeStatement(tokenList) && !error){  
-				char* includedFilename = tokenList->list[tokenList->numTokens-2].stringValue;
-				error = addFileToFileTable(tokenizerConfig, &tokenizerConfig->fileTable, &includedFilename, lineNumber, fileIdx);
+			if(isModifier(c)){
+				tokenStrBuffer[0] = c;
+				tokenStrBuffer[1] = '\0';
+				// Add Token to TokenList
+				error = addNewToken(tokenList, tokenStrBuffer, determineTokenType(tokenStrBuffer), filename, lineNumber);
 				if(error){
 					break;
 				}
 				
-				error = tokenizer(tokenizerConfig, tokenList);
+				// Clear token string and index
+				memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
+				tokenStrBufferLength = 0;
+			}
+
+			if(isStatementDelimeter(c)){
+				// Add Token to TokenList
+				error = addNewToken(tokenList, "\\n", determineTokenType("\\n"), filename, lineNumber);
+				lineNumber++;
 				if(error){
 					break;
 				}
-				tokenizerConfig->includedFileDepth--;
-			}
-		} 
-		
-		if(!isTokenDelimeter(c) && !isModifier(c) && !isStatementDelimeter(c) && !commentFlag) {
-			tokenStrBuffer[tokenStrBufferLength++] = c;
-			if(tokenStrBufferLength >= MAX_TOKEN_LENGTH){
-				ulog(ERROR,"Size of the Token String excedes its maximum length: %i in File %s:%i", \
-							tokenStrBufferLength,filename,lineNumber);	
-				error = 1;
-				break;
+
+				// Clear token string and index
+				memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
+				tokenStrBufferLength = 0;
+				
+				// Check for Include Statement
+				if(isIncludeStatement(tokenList) && !error){  
+					char* includedFilename = tokenList->list[tokenList->numTokens-2].stringValue;
+					error = addFileToFileTable(tokenizerConfig,&tokenizerConfig->fileTable,&includedFilename,lineNumber,fileIdx);
+					if(error){
+						break;
+					}
+					
+					error = tokenizer(tokenizerConfig, tokenList);
+					if(error){
+						break;
+					}
+					tokenizerConfig->includedFileDepth--;
+				}
+			} 
+			
+			if(!isTokenDelimeter(c) && !isModifier(c) && !isStatementDelimeter(c)) {
+				tokenStrBuffer[tokenStrBufferLength++] = c;
+				if(tokenStrBufferLength >= MAX_TOKEN_LENGTH){
+					ulog(ERROR,"Length of the Token String excedes its maximum length: %i in File %s:%i", \
+								tokenStrBufferLength, filename, lineNumber);	
+					error = 1;
+					break;
+				}
 			}
 		}
 	}
