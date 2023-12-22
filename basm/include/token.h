@@ -12,7 +12,7 @@
 enum tokenType {MNENOMIC,ASSIGNMENT,INCLUDE,DIRECTIVE,FLAG,NUMBER,NEWLINE,LABEL_MOD,LABEL,};
 
 struct TOKEN {
-	enum tokenType type;
+	int type;
 	char  stringValue[MAX_TOKEN_LENGTH];	//lexemeString
 	int   size;
 	int   numericValue;

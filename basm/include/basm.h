@@ -1,19 +1,6 @@
 #ifndef BASM_H
 #define BASM_H 1
 
-#ifndef MAX_STATEMENT_LENGTH
-	#define MAX_STATEMENT_LENGTH 6
-#endif
-
-
-#ifndef MAX_LABEL_LENGTH
-	#define MAX_LABEL_LENGTH 255
-#endif
-
-#ifndef MAX_LABEL_COUNT
-	#define MAX_LABEL_COUNT 1024
-#endif
-
 #ifndef LITTLE_ENDIAN
 	#define LITTLE_ENDIAN 0
 #endif

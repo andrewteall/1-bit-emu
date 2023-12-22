@@ -1,8 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-#include <limits.h> 
-#include <unistd.h>  // getcwd
-// #include <ctype.h>
 
 #include "parser.h"
 #include "utils.h"
@@ -12,26 +9,83 @@
 const char *mnenomicStrings2[] = {
 	"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","NULL"};
 
-struct LABEL {
-	char* name;
-	int   value;
-	int   pass;
-	int   lineNumber;
-	char* filename;
-	int   isRemapped;
-	int   subroutineID;
-};
+struct TOKEN blankToken = {-1,"", -1, -1, -1, -1, ""};
 
-void checkForRemapping(int* statement,struct LABEL* labelTable,int labelTableLen,char* tokenString){
-	if (statement[0] == LABEL){
-		int label = getLabelIdx(labelTable,labelTableLen,tokenString,0);
+void checkForRemapping(struct TOKEN** statement,struct LABEL* labelTable,int labelTableLen){
+	if (statement[0]->type == LABEL){
+		int label = getLabelIdx(labelTable,labelTableLen,statement[0]->stringValue,0);
 		if (label != -1 && labelTable[label].isRemapped){
-			statement[0] = MNENOMIC;
+			statement[0]->type = MNENOMIC;
 		}
 	}
 }
 
-int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedArraySize){
+int isMnenomicStatement(struct TOKEN** statement){
+	if ((statement[0]->type == MNENOMIC  &&  statement[1]->type == NUMBER  && statement[2]->type == NEWLINE)  || \
+			    (statement[0]->type == MNENOMIC  &&  statement[1]->type == LABEL   && statement[2]->type == NEWLINE)  || \
+				(statement[0]->type == MNENOMIC  &&  statement[1]->type == NEWLINE)  						    || \
+				(statement[0]->type == MNENOMIC  && (statement[1]->type == NUMBER || statement[1]->type == LABEL)     && \
+				 statement[2]->type == LABEL_MOD &&  (statement[3]->type == NUMBER  || statement[3]->type == LABEL)   && \
+				 statement[4]->type == NEWLINE)){ 
+		return 1;
+	}
+	return 0;
+}
+
+int isDirectiveStatement(struct TOKEN** statement){
+	if (statement[0]->type == DIRECTIVE && \
+					 ((statement[1]->type == LABEL    && statement[2]->type == NEWLINE) 							|| \
+					  (statement[1]->type == NUMBER   && statement[2]->type == NEWLINE) 							|| \
+					  (statement[1]->type == MNENOMIC && statement[2]->type == LABEL && statement[3]->type == NEWLINE) 	|| \
+					  (statement[1]->type == NEWLINE))){
+		return 1;
+	}
+	return 0;
+}
+
+int isLabelStatement(struct TOKEN** statement){
+	if ((statement[0]->type == LABEL && statement[1]->type == NEWLINE) || \
+			(statement[0]->type == LABEL && statement[1]->type == ASSIGNMENT && statement[2]->type == NUMBER && statement[3]->type == NEWLINE) || \
+			(statement[0]->type == LABEL && statement[1]->type == ASSIGNMENT && statement[2]->type == LABEL && statement[3]->type == NEWLINE)  || \
+			(statement[0]->type == LABEL && statement[1]->type == ASSIGNMENT && (statement[2]->type == NUMBER || statement[2]->type == LABEL)  && \
+			 statement[3]->type == LABEL_MOD && (statement[4]->type == LABEL || statement[4]->type == NUMBER) && statement[5]->type == NEWLINE)){
+		return 1;
+	}
+	return 0;
+}
+
+int isInclude(struct TOKEN** statement){
+	if(statement[0]->type == INCLUDE && statement[1]->type == LABEL && statement[2]->type == NEWLINE){
+		return 1;
+	}
+	return 0;
+}
+
+int isBlankLine(struct TOKEN** statement){
+	if(statement[0]->type == NEWLINE){
+		return 1;
+	}
+	return 0;
+}
+
+int getNextStatement(struct TOKEN** statement, struct TOKEN_LIST* tokenList, int* tokenIdx){
+	// Clear Statement Buffer
+	for(int i=0; i < MAX_STATEMENT_LENGTH; i++){
+		statement[i] = &blankToken; 
+	}
+	
+	// Get Next Statement and Store in Buffer
+	int statementLength = 0;
+	while(tokenList->list[*tokenIdx].type != NEWLINE && statementLength < MAX_STATEMENT_LENGTH){
+		statement[statementLength++] = &tokenList->list[*tokenIdx]; 
+		(*tokenIdx)++;
+	}
+	statement[statementLength] = &tokenList->list[*tokenIdx];
+
+	return *tokenIdx;
+}
+
+int parseTokens(struct PARSER_CONFIG* parserConfig, struct TOKEN_LIST* tokenList){
 	ulog(INFO,"Starting Parser");
 	int error = 0;
 	int labelTableLen = 0;
@@ -40,31 +94,19 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 	
 	for (int passCounter = 0; passCounter < 2; passCounter++){
 		int currentAddress = 0;
-		int statementLength = 0;
 		int inSubroutine = 0;
 		int subroutineCounter = 0;
 
 		ulog(INFO,"Starting Pass %i",passCounter+1);
-		for (int i = 0; i<tokenizedArraySize;i++){
-			int statement[MAX_STATEMENT_LENGTH] = {0};
-			while(tokenArr[i].type != NEWLINE){
-				statement[statementLength++] = tokenArr[i].type; 
-				i++;
-			}
-			statement[statementLength] = tokenArr[i].type;
+		for (int i=0; i < tokenList->numTokens; i++){
+			struct TOKEN* statement[MAX_STATEMENT_LENGTH];
 
-			int tokenIdx = i - statementLength;
+			getNextStatement(statement,tokenList,&i);
 
-			checkForRemapping(statement,labelTable,labelTableLen,tokenArr[tokenIdx].stringValue);
+			int tokenIdx = 0;
+			checkForRemapping(statement, labelTable, labelTableLen);
 			
-			if ((statement[0] == MNENOMIC  &&  statement[1] == NUMBER  && statement[2] == NEWLINE)  || \
-			    (statement[0] == MNENOMIC  &&  statement[1] == LABEL   && statement[2] == NEWLINE)  || \
-				(statement[0] == MNENOMIC  &&  statement[1] == NEWLINE)  						    || \
-
-				(statement[0] == MNENOMIC  && (statement[1] == NUMBER || statement[1] == LABEL)     && \
-				 statement[2] == LABEL_MOD &&  (statement[3] == NUMBER  || statement[3] == LABEL)   && \
-				 statement[4] == NEWLINE)){ 
-				
+			if(isMnenomicStatement(statement)){ 
 				int  subroutineID = 0;
 				int  statementError = 0;
 				int  operand = -1;
@@ -72,10 +114,10 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 				char errorMsg[255] = {'\0'};
 				int  errorToken = 0;
 				
-				if(tokenArr[tokenIdx].type == LABEL){
-					opcode = getLabelValue(labelTable,labelTableLen,tokenArr[tokenIdx].stringValue,0);
+				if(statement[tokenIdx]->type == LABEL){
+					opcode = getLabelValue(labelTable,labelTableLen,statement[tokenIdx]->stringValue,0);
 				} else {
-					opcode = getMnenomicOpCode(tokenArr[tokenIdx].stringValue);
+					opcode = getMnenomicOpCode(statement[tokenIdx]->stringValue);
 				}
 				
 				if(opcode == -1){
@@ -84,10 +126,9 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 					errorToken = 0;
 					statementError = 1;
 				}
-				
-				switch (statement[1]){
+				switch (statement[1]->type){
 				case NUMBER:
-					operand = str2num(tokenArr[tokenIdx+1].stringValue);
+					operand = str2num(statement[tokenIdx+1]->stringValue);
 					if(passCounter && operand == -1){
 						strcpy(errorMsg,"Not a Number");
 						errorToken = 1;
@@ -96,7 +137,7 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 					break;
 				case LABEL:
 					subroutineID = inSubroutine * subroutineCounter;
-					operand = getLabelValue(labelTable,labelTableLen,tokenArr[tokenIdx+1].stringValue,subroutineID);
+					operand = getLabelValue(labelTable,labelTableLen,statement[tokenIdx+1]->stringValue,subroutineID);
 					if(passCounter && operand == -1){
 						strcpy(errorMsg,"Label does not exist");
 						errorToken = 1;
@@ -107,15 +148,15 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 					operand = 0;
 					break;
 				}
-
-				switch (statement[2] + statement[3]){
+				
+				switch (statement[2]->type + statement[3]->type){
 				case LABEL_MOD+NUMBER:
-					if(!strcmp(tokenArr[tokenIdx+2].stringValue,"+")){
-						operand += str2num(tokenArr[tokenIdx+3].stringValue);
-					} else if(!strcmp(tokenArr[tokenIdx+2].stringValue,"-")){
-						operand -= str2num(tokenArr[tokenIdx+3].stringValue);
-					} else if(!strcmp(tokenArr[tokenIdx+2].stringValue,"*")){
-						operand *= str2num(tokenArr[tokenIdx+3].stringValue);
+					if(!strcmp(statement[tokenIdx+2]->stringValue,"+")){
+						operand += str2num(statement[tokenIdx+3]->stringValue);
+					} else if(!strcmp(statement[tokenIdx+2]->stringValue,"-")){
+						operand -= str2num(statement[tokenIdx+3]->stringValue);
+					} else if(!strcmp(statement[tokenIdx+2]->stringValue,"*")){
+						operand *= str2num(statement[tokenIdx+3]->stringValue);
 					} else {						
 						strcpy(errorMsg,"Invalid Modifier");
 						errorToken = 2;
@@ -127,14 +168,14 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 						statementError = 1;
 					}
 					break;
-
+					
 				case LABEL_MOD+LABEL:
-					if(!strcmp(tokenArr[tokenIdx+2].stringValue,"+")){
-						operand += getLabelValue(labelTable,labelTableLen,tokenArr[tokenIdx+3].stringValue,subroutineID);
-					} else if(!strcmp(tokenArr[tokenIdx+2].stringValue,"-")){
-						operand -= getLabelValue(labelTable,labelTableLen,tokenArr[tokenIdx+3].stringValue,subroutineID);
-					} else if(!strcmp(tokenArr[tokenIdx+2].stringValue,"*")){
-						operand *= getLabelValue(labelTable,labelTableLen,tokenArr[tokenIdx+3].stringValue,subroutineID);
+					if(!strcmp(statement[tokenIdx+2]->stringValue,"+")){
+						operand += getLabelValue(labelTable,labelTableLen,statement[tokenIdx+3]->stringValue,subroutineID);
+					} else if(!strcmp(statement[tokenIdx+2]->stringValue,"-")){
+						operand -= getLabelValue(labelTable,labelTableLen,statement[tokenIdx+3]->stringValue,subroutineID);
+					} else if(!strcmp(statement[tokenIdx+2]->stringValue,"*")){
+						operand *= getLabelValue(labelTable,labelTableLen,statement[tokenIdx+3]->stringValue,subroutineID);
 					} else {
 						strcpy(errorMsg,"Invalid Modifier");
 						errorToken = 2;
@@ -150,33 +191,28 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 				}
 
 				if(passCounter == 1 && statementError == 1){
-					ulog(ERROR,"%s: %s in file %s:%i",errorMsg, tokenArr[tokenIdx+errorToken].stringValue, \
-					tokenArr[tokenIdx+errorToken].filename, tokenArr[tokenIdx+errorToken].lineNumber);
+					ulog(ERROR,"%s: %s in file %s:%i",errorMsg, statement[tokenIdx+errorToken]->stringValue, \
+					statement[tokenIdx+errorToken]->filename, statement[tokenIdx+errorToken]->lineNumber);
 					error = 1;
 				}
-
-				currentAddress = processMnemonic(sOptions,&tokenArr[tokenIdx],currentAddress,opcode,operand,passCounter);
-
-			} else if (statement[0] == DIRECTIVE && \
-					 ((statement[1] == LABEL    && statement[2] == NEWLINE) 							|| \
-					  (statement[1] == NUMBER   && statement[2] == NEWLINE) 							|| \
-					  (statement[1] == MNENOMIC && statement[2] == LABEL && statement[3] == NEWLINE) 	|| \
-					  (statement[1] == NEWLINE))){
 				
+				currentAddress = processMnemonic(parserConfig,statement[tokenIdx],currentAddress,opcode,operand,passCounter);
+
+			} else if(isDirectiveStatement(statement)){
 				int directiveValue = 0;
 				int subroutineID;
-				char* directiveString = tokenArr[tokenIdx].stringValue;
+				char* directiveString = statement[tokenIdx]->stringValue;
 
-				switch (statement[1]){
+				switch (statement[1]->type){
 				case LABEL:
 					subroutineID = inSubroutine * subroutineCounter;
-					directiveValue = getLabelValue(labelTable,labelTableLen,tokenArr[tokenIdx+1].stringValue,subroutineID);
+					directiveValue = getLabelValue(labelTable,labelTableLen,statement[tokenIdx+1]->stringValue,subroutineID);
 					break;
 				case NUMBER:
-					directiveValue = str2num(tokenArr[tokenIdx+1].stringValue);
+					directiveValue = str2num(statement[tokenIdx+1]->stringValue);
 					break;
 				case MNENOMIC:
-					directiveValue = getMnenomicOpCode(tokenArr[tokenIdx+1].stringValue);
+					directiveValue = getMnenomicOpCode(statement[tokenIdx+1]->stringValue);
 					break;
 				case NEWLINE:
 					
@@ -193,78 +229,74 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 				}
 
 				if(passCounter == 1 && directiveValue == -1){
-					ulog(ERROR,"Label does not exist: %s in file %s:%i", tokenArr[tokenIdx+1].stringValue, \
-										tokenArr[tokenIdx+1].filename ,tokenArr[tokenIdx+1].lineNumber);
+					ulog(ERROR,"Label does not exist: %s in file %s:%i", statement[tokenIdx+1]->stringValue, \
+										statement[tokenIdx+1]->filename ,statement[tokenIdx+1]->lineNumber);
 					error = 1;
 
 				}
-				currentAddress = processDirective(sOptions,tokenArr,labelTable,&labelTableLen,tokenIdx, \
+				currentAddress = processDirective(parserConfig,statement,labelTable,&labelTableLen,tokenIdx, \
 													currentAddress,directiveValue,passCounter);
 
 				
 
-			} else if ((statement[0] == LABEL && statement[1] == NEWLINE) || \
-			(statement[0] == LABEL && statement[1] == ASSIGNMENT && statement[2] == NUMBER && statement[3] == NEWLINE) || \
-			(statement[0] == LABEL && statement[1] == ASSIGNMENT && statement[2] == LABEL && statement[3] == NEWLINE)  || \
-			(statement[0] == LABEL && statement[1] == ASSIGNMENT && (statement[2] == NUMBER || statement[2] == LABEL)  && \
-			 statement[3] == LABEL_MOD && (statement[4] == LABEL || statement[4] == NUMBER) && statement[5] == NEWLINE)){
+			} else if(isLabelStatement(statement)){
 				int subroutineID;
 				int labelValue = 0;
 				struct TOKEN* token;
-				char* labelName = tokenArr[tokenIdx].stringValue;
+				char* labelName = statement[tokenIdx]->stringValue;
 				
-				switch (statement[2]){
+				switch (statement[2]->type){
 				case NUMBER:
-					labelValue = str2num(tokenArr[tokenIdx+2].stringValue);
-					token = &tokenArr[tokenIdx+2];
+					labelValue = str2num(statement[tokenIdx+2]->stringValue);
+					token = &tokenList->list[tokenIdx+2];
 					break;
 				case LABEL:
 					subroutineID = inSubroutine * subroutineCounter;
-					labelValue = getLabelValue(labelTable,labelTableLen,tokenArr[tokenIdx+2].stringValue,subroutineID);
-					token = &tokenArr[tokenIdx+2];
+					labelValue = getLabelValue(labelTable,labelTableLen,statement[tokenIdx+2]->stringValue,subroutineID);
+					token = &tokenList->list[tokenIdx+2];
 					break;
 				default:
 					labelValue = currentAddress;
-					tokenArr[i].address = currentAddress;
-					token = &tokenArr[tokenIdx];
+					tokenList->list[i].address = currentAddress;
+					token = &tokenList->list[tokenIdx];
 					break;
 				}
 
-				switch (statement[3] + statement[4]){
+				switch (statement[3]->type + statement[4]->type){
 				case LABEL_MOD+NUMBER:
-					if(!strcmp(tokenArr[tokenIdx+3].stringValue,"+")){
-						labelValue += str2num(tokenArr[tokenIdx+4].stringValue); 
-					} else if(!strcmp(tokenArr[tokenIdx+3].stringValue,"-")){
-						labelValue -= str2num(tokenArr[tokenIdx+4].stringValue); 
-					} else if(!strcmp(tokenArr[tokenIdx+3].stringValue,"*")){
-						labelValue *= str2num(tokenArr[tokenIdx+4].stringValue); 
+					if(!strcmp(statement[tokenIdx+3]->stringValue,"+")){
+						labelValue += str2num(statement[tokenIdx+4]->stringValue); 
+					} else if(!strcmp(statement[tokenIdx+3]->stringValue,"-")){
+						labelValue -= str2num(statement[tokenIdx+4]->stringValue); 
+					} else if(!strcmp(statement[tokenIdx+3]->stringValue,"*")){
+						labelValue *= str2num(statement[tokenIdx+4]->stringValue); 
 					} else {
-						ulog(ERROR,"Invalid Label Modifier: %s in file %s:%i",tokenArr[tokenIdx+3].stringValue, \
-									tokenArr[tokenIdx+3].filename, tokenArr[tokenIdx+3].lineNumber);
+						ulog(ERROR,"Invalid Label Modifier: %s in file %s:%i",statement[tokenIdx+3]->stringValue, \
+									statement[tokenIdx+3]->filename, statement[tokenIdx+3]->lineNumber);
 						error = 1;
 					}
 					break;
 
 				case LABEL_MOD+LABEL:
-					if(!strcmp(tokenArr[tokenIdx+3].stringValue,"+")){
-						labelValue += getLabelValue(labelTable,labelTableLen,tokenArr[tokenIdx+4].stringValue,subroutineID);
-					} else if(!strcmp(tokenArr[tokenIdx+3].stringValue,"-")){
-						labelValue -= getLabelValue(labelTable,labelTableLen,tokenArr[tokenIdx+4].stringValue,subroutineID);
-					} else if(!strcmp(tokenArr[tokenIdx+3].stringValue,"*")){
-						labelValue *= getLabelValue(labelTable,labelTableLen,tokenArr[tokenIdx+4].stringValue,subroutineID);
+					if(!strcmp(statement[tokenIdx+3]->stringValue,"+")){
+						labelValue += getLabelValue(labelTable,labelTableLen,statement[tokenIdx+4]->stringValue,subroutineID);
+					} else if(!strcmp(statement[tokenIdx+3]->stringValue,"-")){
+						labelValue -= getLabelValue(labelTable,labelTableLen,statement[tokenIdx+4]->stringValue,subroutineID);
+					} else if(!strcmp(statement[tokenIdx+3]->stringValue,"*")){
+						labelValue *= getLabelValue(labelTable,labelTableLen,statement[tokenIdx+4]->stringValue,subroutineID);
 					} else {
-						ulog(ERROR,"Invalid Label Modifier: %s in file %s:%i",tokenArr[tokenIdx+3].stringValue, \
-									tokenArr[tokenIdx+3].filename, tokenArr[tokenIdx+3].lineNumber);
+						ulog(ERROR,"Invalid Label Modifier: %s in file %s:%i",statement[tokenIdx+3]->stringValue, \
+									statement[tokenIdx+3]->filename, statement[tokenIdx+3]->lineNumber);
 						error = 1;
 					}
 					break;
 				}
 
-				if(passCounter && checkOverflow(sOptions, token, 0, labelValue)){
+				if(passCounter && checkOverflow(parserConfig, token, 0, labelValue)){
 					return -1;
 				}
 				int subroutine = inSubroutine * subroutineCounter;
-				labelTableLen = addLabel(labelTable,labelName,labelValue,labelTableLen,passCounter,&tokenArr[tokenIdx],0, subroutine);
+				labelTableLen = addLabel(labelTable,labelName,labelValue,labelTableLen,passCounter,&tokenList->list[tokenIdx],0, subroutine);
 
 				
 				if (labelTableLen == -1){
@@ -272,20 +304,20 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 				}
 			
 
-			} else if (statement[0] == INCLUDE && statement[1] == LABEL && statement[2] == NEWLINE){
+			} else if(isInclude(statement)){
 				//Ignore includes here
-			} else if (statement[0] == NEWLINE){
+			} else if(isBlankLine(statement)){
 				//Ignore blank lines
 			} else {
 				if(passCounter){
 					char errorStatementStr[255];
 					for(int j=0; tokenIdx+j != i;j++){
-						strcat(errorStatementStr,tokenArr[tokenIdx+j].stringValue);
+						strcat(errorStatementStr,tokenList->list[tokenIdx+j].stringValue);
 						strcat(errorStatementStr," ");
 					}
 				
 					ulog(ERROR,"Invalid Statement %sin File: %s:%i ", \
-												errorStatementStr,tokenArr[i].filename,tokenArr[i].lineNumber);
+												errorStatementStr,tokenList->list[i].filename,tokenList->list[i].lineNumber);
 					memset(errorStatementStr,0,255);
 					error = 1;
 				}
@@ -295,18 +327,15 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 				return -1;
 			}
 
-			statementLength = 0;
-			if ((currentAddress+tokenArr[i].size) > maxAddress){
-				maxAddress = currentAddress+tokenArr[i].size;
+
+			if ((currentAddress+tokenList->list[i].size) > maxAddress){
+				maxAddress = currentAddress+tokenList->list[i].size;
 			}
 		}
-		if(sOptions->printLabelTable){
+		
+		if(parserConfig->printLabelTable){
 			printLabelTable(labelTable,labelTableLen);
 		}
-	}
-
-	if(sOptions->parsePrint){
-		// printTokens(tokenArr,tokenizedArraySize);
 	}
 	
 	if(error){
@@ -317,54 +346,54 @@ int parseTokens(struct OPTIONS* sOptions, struct TOKEN* tokenArr, int tokenizedA
 	return (maxAddress * !error);
 }
 
-int checkOverflow(struct OPTIONS* sOptions, struct TOKEN* token,int value,int address){
+int checkOverflow(struct PARSER_CONFIG* parserConfig, struct TOKEN* token,int value,int address){
 	int overflow = 0;
-	if(getCountBytesInNum(value) > sOptions->wordWidth){
+	if(getCountBytesInNum(value) > parserConfig->wordWidth){
 		ulog(ERROR,"Overflow word width: %i in file: %s:%i",value,token->filename,token->lineNumber);
 		overflow = 1;
 	}
-	if(getCountBitsInNum(address) > sOptions->addressWidth){
+	if(getCountBitsInNum(address) > parserConfig->addressWidth){
 		ulog(ERROR,"Overflow address width: %i in file %s:%i",address,token->filename,token->lineNumber);
 		overflow = 1;
 	}
 	return overflow;
 }
 
-int processMnemonic(struct OPTIONS* sOptions, struct TOKEN* token, int currentAddress,int opcode,int address, int pass){
-	int opcodePositionVal = opcode << (((sOptions->wordWidth*8)-sOptions->instructionWidth)-sOptions->instructionPosition);
-	int addressPositionVal = address << (((sOptions->wordWidth*8)-sOptions->addressWidth)-sOptions->addressPosition);
+int processMnemonic(struct PARSER_CONFIG* parserConfig, struct TOKEN* token, int currentAddress,int opcode,int address, int pass){
+	int opcodePositionVal = opcode << (((parserConfig->wordWidth*8)-parserConfig->instructionWidth)-parserConfig->instructionPosition);
+	int addressPositionVal = address << (((parserConfig->wordWidth*8)-parserConfig->addressWidth)-parserConfig->addressPosition);
 
 	int value = (opcodePositionVal | addressPositionVal);
 	
-	if(pass && address != -1 && checkOverflow(sOptions, token, value, address)){
+	if(pass && address != -1 && checkOverflow(parserConfig, token, value, address)){
 		return -1;
 	}
-	
+
 	token->numericValue = value;
 	token->address = currentAddress;
-	token->size = sOptions->wordWidth;
+	token->size = parserConfig->wordWidth;
 
-	currentAddress += sOptions->wordWidth;
+	currentAddress += parserConfig->wordWidth;
 	return currentAddress;
 
 }
 
-int processDirective(struct OPTIONS* sOptions,struct TOKEN* tokenArr, struct LABEL *labelTable, int* labelIdx, \
+int processDirective(struct PARSER_CONFIG* parserConfig,struct TOKEN** statement, struct LABEL *labelTable, int* labelIdx, \
 						int tokenIdx, int currentAddress,int value,int passCounter){
-	if (!strcmp(tokenArr[tokenIdx].stringValue,"ORG")){
-		if(passCounter && checkOverflow(sOptions, &tokenArr[tokenIdx], value, value)){
+	if (!strcmp(statement[tokenIdx]->stringValue,"ORG")){
+		if(passCounter && checkOverflow(parserConfig, statement[tokenIdx], value, value)){
 			ulog(ERROR,"ORG value in %s:%i is out of specified address range", \
-									tokenArr[tokenIdx].filename,tokenArr[tokenIdx].lineNumber);
+									statement[tokenIdx]->filename,statement[tokenIdx]->lineNumber);
 			return -1;
 		}
 		ulog(INFO,"Setting ORG to %i",value);
 		currentAddress = value;
-	} else if (!strcmp(tokenArr[tokenIdx].stringValue,"REMAP")){
-		char* labelName = tokenArr[tokenIdx+2].stringValue;
-		*labelIdx = addLabel(labelTable,labelName,value,*labelIdx,passCounter,&tokenArr[tokenIdx],1, 0);
-		ulog(INFO,"Remapping %s to %s",labelName, tokenArr[tokenIdx+1].stringValue);
+	} else if (!strcmp(statement[tokenIdx]->stringValue,"REMAP")){
+		char* labelName = statement[tokenIdx+2]->stringValue;
+		*labelIdx = addLabel(labelTable,labelName,value,*labelIdx,passCounter,statement[tokenIdx],1, 0);
+		ulog(INFO,"Remapping %s to %s",labelName, statement[tokenIdx+1]->stringValue);
 		if(passCounter && *labelIdx == -1){
-			ulog(ERROR,"Unable to remap %s to %s",labelName,tokenArr[tokenIdx+1].stringValue); 
+			ulog(ERROR,"Unable to remap %s to %s",labelName,statement[tokenIdx+1]->stringValue); 
 		}
 	}
 	return currentAddress;

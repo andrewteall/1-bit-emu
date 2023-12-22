@@ -21,32 +21,41 @@ int assemble(struct OPTIONS* options, char* filename, char* binaryArr){
 	}
 
 /******************************************************************************/
-	// /* Parse the Tokens generated */
-	// int binSize = parseTokens(options, &tokenList, numTokens);
-	// if (!binSize){
-	// 	return -1;
-	// }
+	/* Parse the Tokens generated */
+	struct PARSER_CONFIG parserConfig;
+	parserConfig.instructionWidth = options->instructionWidth;
+	parserConfig.addressWidth = options->addressWidth;
+	parserConfig.instructionPosition = options->instructionPosition;
+	parserConfig.addressPosition = options->addressPosition;
+	parserConfig.wordWidth = options->wordWidth;
+	parserConfig.printLabelTable = options->printLabelTable;
+	
+	int binSize = parseTokens(&parserConfig, &tokenList);
+	if (!binSize){
+		return -1;
+	}
+	if(options->parsePrint){
+		printTokens(&tokenList);
+	}
 /******************************************************************************/
 
 /*******************************************************************************************/
 	// Write buffer to Binary Array in order
-	// if(options->align && binSize < options->alignValue){
-	// 		binSize = options->alignValue;
-	// }
-	// char binaryArr[binSize];
+	if(options->align && binSize < options->alignValue){
+			binSize = options->alignValue;
+	}
 	
-	// int byteWriteCounter = 0;
-	// for (int i=0;i<numTokens;i++){
-	// 	if (tokenList[i].size){
-	// 		writeByteToArray(binaryArr,options,tokenList[i].address,tokenList[i].numericValue);
-	// 		byteWriteCounter += options->wordWidth;
-	// 	}
-	// }
+	int byteWriteCounter = 0;
+	for (int i=0;i<numTokens;i++){
+		if (tokenList.list[i].size){
+			writeByteToArray(binaryArr,options,tokenList.list[i].address,tokenList.list[i].numericValue);
+			byteWriteCounter += options->wordWidth;
+		}
+	}
 
 /*******************************************************************************************/
 
-	// return binSize;
-	return numTokens;
+	return binSize;
 }
 
 int writeByteToArray(char* array, struct OPTIONS* options, int position, int value){
