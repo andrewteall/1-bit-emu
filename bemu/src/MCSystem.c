@@ -1,8 +1,11 @@
-#include <stdio.h>
+#include <inttypes.h>
 #include <math.h>
+#include <stdio.h>
 
 #include "MCSystem.h"
 #include "ulog.h"
+
+const char* pinActionsStrings[] = {"NONE","JUMP","JSR","RET","JSRS","RETS","HLT","RES","NULL"};
 
 /*****************************************************************************/
 /********************************** Stack ************************************/
@@ -89,18 +92,14 @@ uint8_t returnSubRoutineShallow(struct STACK* stack, uint16_t* pc){
 	return 0;
 }
 
-void halt(struct MC14500 *icu){
-	stopICU(icu);
+uint8_t getActivePinAndHandler(uint8_t jmpPin, uint8_t rtnPin, uint8_t flagOPin, uint8_t flagFPin, struct PIN_HANDLES* pinHandles){
+	return (pinHandles->flagFPinHandler*flagFPin) + (rtnPin*pinHandles->rtnPinHandler) + \
+        (jmpPin*pinHandles->jmpPinHandler) + (flagOPin*pinHandles->flagOPinHandler);
 }
 
-uint8_t selectPinAndHandler(struct MC14500* icu, struct PIN_HANDLES* pinHandles){
-	return(pinHandles->flagFPinHandler*icu->flagFPin) + (icu->rtnPin*pinHandles->rtnPinHandler) + \
-        (icu->jmpPin*pinHandles->jmpPinHandler) + (icu->flagOPin*pinHandles->flagOPinHandler);
-}
-
-uint8_t pinHandler(struct MC14500* icu, struct STACK* stack, uint16_t* pc, uint32_t address, struct PIN_HANDLES* pinHandles){
+uint8_t pinHandler(uint8_t handlerForPin, struct STACK* stack, uint16_t* pc, uint32_t address, struct SIGNALS* signals){
 	uint8_t error = 0;
-	switch (selectPinAndHandler(icu, pinHandles)){
+	switch (handlerForPin){
 		case NONE:
 			break;
 		case JUMP:
@@ -119,10 +118,10 @@ uint8_t pinHandler(struct MC14500* icu, struct STACK* stack, uint16_t* pc, uint3
 			error = returnSubRoutineShallow(stack, pc);
 			break;
 		case HLT:
-			halt(icu);
+			signals->stopSignal = 1;
 			break;
 		case RES:
-			resetICU(icu);
+			signals->resetSignal = 1;
 			break;
 		default:
 			break;
@@ -130,20 +129,25 @@ uint8_t pinHandler(struct MC14500* icu, struct STACK* stack, uint16_t* pc, uint3
 	return error;
 }
 
-void setPinHandlers(struct PIN_HANDLES* pinHandles, uint8_t* jmpPin, uint8_t* rtnPin, uint8_t* flagOPin, uint8_t* flagFPin){
-    if(pinHandles->jmpPinHandler>0 && pinHandles->jmpPinHandler<6){
-		pinHandles->jmpPinPtr = jmpPin;
-	}
-	if(pinHandles->rtnPinHandler>0 && pinHandles->rtnPinHandler<6){
-		pinHandles->rtnPinPtr = rtnPin;
-	}
-	if(pinHandles->flagFPinHandler>0 && pinHandles->flagFPinHandler<6){
-		pinHandles->flagFPinPtr = flagFPin;
-	}
-	if(pinHandles->flagOPinHandler>0 && pinHandles->flagOPinHandler<6){
-		pinHandles->flagOPinPtr = flagOPin;
-	}
+void clearSignals(struct SIGNALS* signals){
+	signals->stopSignal = 0;
+	signals->resetSignal = 0;
 }
+
+// void setPinHandlers(struct PIN_HANDLES* pinHandles, uint8_t* jmpPin, uint8_t* rtnPin, uint8_t* flagOPin, uint8_t* flagFPin){
+//     if(pinHandles->jmpPinHandler>0 && pinHandles->jmpPinHandler<6){
+// 		pinHandles->jmpPinPtr = jmpPin;
+// 	}
+// 	if(pinHandles->rtnPinHandler>0 && pinHandles->rtnPinHandler<6){
+// 		pinHandles->rtnPinPtr = rtnPin;
+// 	}
+// 	if(pinHandles->flagFPinHandler>0 && pinHandles->flagFPinHandler<6){
+// 		pinHandles->flagFPinPtr = flagFPin;
+// 	}
+// 	if(pinHandles->flagOPinHandler>0 && pinHandles->flagOPinHandler<6){
+// 		pinHandles->flagOPinPtr = flagOPin;
+// 	}
+// }
 
 /*****************************************************************************/
 /*********************************** ROM *************************************/
@@ -212,8 +216,11 @@ uint32_t decodeAddress(uint32_t programROMValue, uint8_t wordWidth, uint8_t addr
 /*****************************************************************************/
 /****************************** Program Counter ******************************/
 /*****************************************************************************/
-
-uint8_t getPCIncrement(struct PIN_HANDLES* pinHandles, int wordWidth){
-	return (!(*pinHandles->jmpPinPtr)*!(*pinHandles->rtnPinPtr)*!(*pinHandles->flagFPinPtr)*!(*pinHandles->flagOPinPtr)) * wordWidth;
+uint8_t getPCIncrement(uint8_t jmpPin, uint8_t rtnPin, uint8_t flagFPin, uint8_t flagOPin, int wordWidth){
+	return (!(jmpPin)*!(rtnPin)*!(flagFPin)*!(flagOPin)) * wordWidth;
 }
+
+// uint8_t getPCIncrement(struct PIN_HANDLES* pinHandles, int wordWidth){
+// 	return (!(*pinHandles->jmpPinPtr)*!(*pinHandles->rtnPinPtr)*!(*pinHandles->flagFPinPtr)*!(*pinHandles->flagOPinPtr)) * wordWidth;
+// }
 

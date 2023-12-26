@@ -1,6 +1,7 @@
-#include "IODevice.h"
+#include <inttypes.h>
 
-#include "../../ulog/include/ulog.h"
+#include "IODevice.h"
+#include "ulog.h"
 
 void initIODeviceList(struct IODevice* deviceList, uint16_t deviceListSize){
 	for(int deviceAddress = 0; deviceAddress < deviceListSize; deviceAddress++){

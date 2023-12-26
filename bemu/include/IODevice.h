@@ -1,7 +1,5 @@
 #ifndef IODEVICE_H
-    #define IODEVICE_H 1
-
-#include <inttypes.h>
+#define IODEVICE_H 1
 
 enum ioDeviceType {INPUT,OUTPUT,IO,NUM_IO_DEVICE_TYPES};
 

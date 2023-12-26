@@ -10,9 +10,6 @@
 #include "ulog.h"
 #include "utils.h"
 
-const char* pinActionsStrings[] = {"NONE","JUMP","JSR","RET","JSRS","RETS","HLT","RES","NULL"};
-
-
 int run(struct OPTIONS* sOptions){
 	int error = 0;
 	/*********************************************************************/
@@ -25,8 +22,15 @@ int run(struct OPTIONS* sOptions){
 	/*************************** Setup ICU *******************************/
 	struct MC14500 icu;
 	initICU(&icu);
-	setPinHandlers(&sOptions->pinHandles, &icu.jmpPin, &icu.rtnPin, \
-											&icu.flagOPin,&icu.flagFPin);
+	// setPinHandlers(&sOptions->pinHandles, &icu.jmpPin, &icu.rtnPin, &icu.flagOPin,&icu.flagFPin);
+
+	struct PIN_HANDLES pinHandles;
+	pinHandles.jmpPinHandler = sOptions->jmpPinHandler;
+    pinHandles.rtnPinHandler = sOptions->rtnPinHandler;
+    pinHandles.flagFPinHandler = sOptions->flagFPinHandler;
+    pinHandles.flagOPinHandler = sOptions->flagOPinHandler;
+
+	struct SIGNALS signals;
 	/*********************************************************************/
 
 	/*********************************************************************/
@@ -71,7 +75,7 @@ int run(struct OPTIONS* sOptions){
 	startICU(&icu);
 	while(icu.status == RUNNING && !error){
 		// Fetch - Clock Up
-		pc += getPCIncrement(&sOptions->pinHandles, sOptions->wordWidth); // 0 if we modify the PC outside of this line
+		pc += getPCIncrement(icu.jmpPin, icu.rtnPin, icu.flagFPin, icu.flagOPin, sOptions->wordWidth); // 0 if we modify the PC outside of this line
 		programROMValue = readWordFromROM(programROM, pc, sOptions->wordWidth, sOptions->endianess);
 		address = decodeAddress(programROMValue, sOptions->wordWidth, sOptions->instructionWidth, sOptions->instructionPosition);
 		instruction = decodeInstruction(programROMValue, sOptions->wordWidth, sOptions->instructionWidth, sOptions->instructionPosition);
@@ -87,16 +91,25 @@ int run(struct OPTIONS* sOptions){
 		latchDataPinToIODevice(deviceList,address,&icu.dataPin,icu.writePin,sOptions->ioDeviceCount);
 		
 		if(sOptions->enableDebugger){
-			drawScreen(sOptions,pc, address, &icu,deviceList,stack.data,&stack.sp,programROM);
+			drawScreen(sOptions,pc, address, &icu,deviceList,stack.data,&stack.sp,programROM,&pinHandles);
 		} else if(sOptions->printState){
 			printSystemInfo(pc, address, &icu);
 		}
 		
 		// User Defined Pin Handling
-		error += !error * pinHandler(&icu, &stack, &pc, address, &sOptions->pinHandles);
+		uint8_t handlerForPin = getActivePinAndHandler(icu.jmpPin, icu.rtnPin, icu.flagOPin, icu.flagFPin, &pinHandles);
+		error += !error * pinHandler(handlerForPin, &stack, &pc, address, &signals);
 
 		// (pc >= sOptions->romSize) ? pc = 0 : 0; 
 		pc *= !(pc >= sOptions->romSize); // Reset PC if we overflow the "ROM"
+
+		if(signals.stopSignal){
+			stopICU(&icu);
+		}
+		if(signals.resetSignal){
+			resetICU(&icu);
+		}
+		clearSignals(&signals);
 	}
 
 	if(sOptions->enableDebugger){
@@ -172,16 +185,21 @@ void setDefaultOptions(struct OPTIONS* sOptions){
 
     sOptions->enableDebugger        = 0;
 
-    sOptions->pinHandles.pinSink = 0;
-    sOptions->pinHandles.jmpPinPtr = &sOptions->pinHandles.pinSink;
-    sOptions->pinHandles.rtnPinPtr = &sOptions->pinHandles.pinSink;
-    sOptions->pinHandles.flagFPinPtr = &sOptions->pinHandles.pinSink;
-    sOptions->pinHandles.flagOPinPtr = &sOptions->pinHandles.pinSink;
+    // sOptions->pinHandles.pinSink = 0;
+    // sOptions->pinHandles.jmpPinPtr = &sOptions->pinHandles.pinSink;
+    // sOptions->pinHandles.rtnPinPtr = &sOptions->pinHandles.pinSink;
+    // sOptions->pinHandles.flagFPinPtr = &sOptions->pinHandles.pinSink;
+    // sOptions->pinHandles.flagOPinPtr = &sOptions->pinHandles.pinSink;
 
-    sOptions->pinHandles.jmpPinHandler = NONE;
-    sOptions->pinHandles.rtnPinHandler = NONE;
-    sOptions->pinHandles.flagFPinHandler = NONE;
-    sOptions->pinHandles.flagOPinHandler = NONE;
+    // sOptions->pinHandles.jmpPinHandler = NONE;
+    // sOptions->pinHandles.rtnPinHandler = NONE;
+    // sOptions->pinHandles.flagFPinHandler = NONE;
+    // sOptions->pinHandles.flagOPinHandler = NONE;
+
+	sOptions->jmpPinHandler = NONE;
+    sOptions->rtnPinHandler = NONE;
+    sOptions->flagFPinHandler = NONE;
+    sOptions->flagOPinHandler = NONE;
 
     sOptions->pcInitAddress = 0;
     sOptions->printState = 0;
@@ -301,25 +319,25 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 			if (!strcmp(argv[i+1],"j") || !strcmp(argv[i+1],"J")){
 				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
 					if(!strcmp(argv[i+2],pinActionsStrings[j])){
-						 sOptions->pinHandles.jmpPinHandler = j;
+						 sOptions->jmpPinHandler = j;
 					}
 				}
 			} else if (!strcmp(argv[i+1],"r") || !strcmp(argv[i+1],"R")){
 				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
 					if(!strcmp(argv[i+2],pinActionsStrings[j])){
-						 sOptions->pinHandles.rtnPinHandler = j;
+						 sOptions->rtnPinHandler = j;
 					}
 				}
 			} else if (!strcmp(argv[i+1],"o") || !strcmp(argv[i+1],"O")){
 				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
 					if(!strcmp(argv[i+2],pinActionsStrings[j])){
-						 sOptions->pinHandles.flagOPinHandler = j;
+						 sOptions->flagOPinHandler = j;
 					}
 				}
 			} else if (!strcmp(argv[i+1],"f") || !strcmp(argv[i+1],"F")){
 				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
 					if(!strcmp(argv[i+2],pinActionsStrings[j])){
-						 sOptions->pinHandles.flagFPinHandler = j;
+						 sOptions->flagFPinHandler = j;
 					}
 				}
 			} else{

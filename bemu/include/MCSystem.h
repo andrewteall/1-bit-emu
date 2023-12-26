@@ -1,10 +1,5 @@
 #ifndef MCSYSTEM_H
-    #define MCSYSTEM_H 1
-    
-#include <inttypes.h>
-
-#include "bemu.h"
-#include "MC14500.h"
+    #define MCSYSTEM_H 
 
 #ifndef UP
     #define UP 1
@@ -21,6 +16,32 @@
 #ifndef BIG_ENDIAN
     #define BIG_ENDIAN 1
 #endif
+
+enum pinActions {NONE,JUMP,JSR,RET,JSRS,RETS,HLT,RES,};
+extern const char* pinActionsStrings[];
+
+/**
+ * @struct PIN_HANDLES
+ * @brief This structure contains all User Pin Handler selectors and the User 
+ *        Pin pointers.
+ */
+struct PIN_HANDLES {
+	// uint8_t pinSink;
+    // uint8_t* jmpPinPtr;
+    // uint8_t* rtnPinPtr;
+    // uint8_t* flagFPinPtr;
+    // uint8_t* flagOPinPtr;
+
+    uint8_t jmpPinHandler;
+    uint8_t rtnPinHandler;
+    uint8_t flagFPinHandler;
+    uint8_t flagOPinHandler;
+};
+
+struct SIGNALS {
+    uint8_t stopSignal;
+    uint8_t resetSignal;
+};
 
 struct STACK {
     uint32_t* data;
@@ -44,10 +65,20 @@ void initStack(struct STACK* stack, uint32_t* data, uint32_t stackSize, uint8_t 
  * @param address The address operand of currently executing instruction.
  * @return uint8_t Returns a 0 is successful or a 1 if any failure occurs.
  */
-uint8_t pinHandler(struct MC14500* icu,struct STACK* stack, uint16_t* pc, uint32_t address, struct PIN_HANDLES* pinHandles);
+// uint8_t pinHandler(struct MC14500* icu,struct STACK* stack, uint16_t* pc, uint32_t address, struct PIN_HANDLES* pinHandles);
+// uint8_t getActivePinAndHandler(struct MC14500* icu, struct PIN_HANDLES* pinHandles);
+// void setPinHandlers(struct PIN_HANDLES* pinHandles,uint8_t* jmpPin,uint8_t* rtnPin,uint8_t* flagOPin,uint8_t* flagFPin);
+uint8_t getActivePinAndHandler(uint8_t jmpPin, uint8_t rtnPin, uint8_t flagOPin, uint8_t flagFPin, struct PIN_HANDLES* pinHandles);
+uint8_t pinHandler(uint8_t handlerForPin, struct STACK* stack, uint16_t* pc, uint32_t address, struct SIGNALS* signals);
+void clearSignals(struct SIGNALS* signals);
 
-void setPinHandlers(struct PIN_HANDLES* pinHandles,uint8_t* jmpPin,uint8_t* rtnPin,uint8_t* flagOPin,uint8_t* flagFPin);
-uint8_t selectPinAndHandler(struct MC14500* icu, struct PIN_HANDLES* pinHandles);
+
+void jump(uint16_t* pc, uint32_t address);
+uint8_t jumpSubRoutine(struct STACK* stack, uint16_t* pc, uint32_t address);
+uint8_t returnSubRoutine(struct STACK* stack, uint16_t* pc);
+uint8_t jumpSubRoutineShallow(struct STACK* stack, uint16_t* pc, uint32_t address);
+uint8_t returnSubRoutineShallow(struct STACK* stack, uint16_t* pc);
+
 
 /**
  * @brief Determines the amount to increment to Program Counter by based on the
@@ -59,7 +90,8 @@ uint8_t selectPinAndHandler(struct MC14500* icu, struct PIN_HANDLES* pinHandles)
  * @param wordWidth width of word to know how much to increment the PC
  * @return uint8_t The value to increment the Program Counter by.
  */
-uint8_t getPCIncrement(struct PIN_HANDLES* pinHandles, int wordWidth);
+// uint8_t getPCIncrement(struct PIN_HANDLES* pinHandles, int wordWidth);
+uint8_t getPCIncrement(uint8_t jmpPin, uint8_t rtnPin, uint8_t flagFPin, uint8_t flagOPin, int wordWidth);
 
 
 /**

@@ -1,24 +1,9 @@
+#include <inttypes.h>
+
 #include "MC14500.h"
 #include "ulog.h"
 
 const char* mnenomicStrings[] = {"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF"};
-
-// void nopo(struct MC14500* icu);
-// void   ld(struct MC14500* icu);
-// void  ldc(struct MC14500* icu);
-// void  and(struct MC14500* icu);
-// void andc(struct MC14500* icu);
-// void   or(struct MC14500* icu);
-// void  orc(struct MC14500* icu);
-// void xnor(struct MC14500* icu);
-// void  sto(struct MC14500* icu);
-// void stoc(struct MC14500* icu);
-// void  ien(struct MC14500* icu);
-// void  oen(struct MC14500* icu);
-// void  jmp(struct MC14500* icu);
-// void  rtn(struct MC14500* icu);
-// void  skz(struct MC14500* icu);
-// void nopf(struct MC14500* icu);
 
 void nopo(struct MC14500 *icu){
     icu->logicUnit = icu->resultsRegister;

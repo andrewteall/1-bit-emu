@@ -1,10 +1,12 @@
 #include <ncurses.h>
 
-#include "MC14500.h"
-#include "utils.h"
-#include "MCSystem.h"
+#include "bemu.h"
+#include "debugger.h"
 #include "IODevice.h"
-#include "../../ulog/include/ulog.h"
+#include "MC14500.h"
+#include "MCSystem.h"
+#include "ulog.h"
+#include "utils.h"
 
 const char* pinActionsStrings4[] = {"NONE","JUMP","JSR","RET","JSRS","RETS","HLT","RES","NULL"};
 
@@ -122,7 +124,7 @@ void clearLogMessage(){
 }
 
 void drawScreen(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct MC14500* icu,struct IODevice* deviceList, \
-                    uint32_t* stack, uint32_t* sp,  uint32_t* programROM){
+                    uint32_t* stack, uint32_t* sp,  uint32_t* programROM, struct PIN_HANDLES* pinHandles){
     move(0,0);
     printw("-------------------------------| Bemu Debugger  |-------------------------------\n");
     move(1,0);
@@ -157,10 +159,10 @@ void drawScreen(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct M
     printw("                 Registers and Pins          \n");
     printw("=====================================================\n");
     printw("PC: 0x%02x  Inst: %4s(0x%02x)  Addr: 0x%02x    SP: 0x%02x\n\nLU: %i     RR: %i          IEN/OEN = %i/%i " \
-					"   Write: %i\n\nData: %i   Skip Next: %i      JROF: %i%i%i%i    Map: %s\n",
+					"   Write: %i\n\nData: %i   Skip Next: %i      JROF: %i%i%i%i    Map: \n",
                     pc,mnenomicStrings[icu->instruction],icu->instruction,address,*sp, icu->logicUnit,icu->resultsRegister, \
                     icu->ienRegister,icu->oenRegister,icu->writePin,icu->dataPin,icu->skipRegister,icu->jmpPin,icu->rtnPin, \
-                    icu->flagOPin,icu->flagFPin, pinActionsStrings4[selectPinAndHandler(icu,&sOptions->pinHandles)]);
+                    icu->flagOPin,icu->flagFPin/*, pinActionsStrings4[getActivePinAndHandler(icu,pinHandles)]*/);
 
 
     printStack(sOptions,53,7,stack,sp);

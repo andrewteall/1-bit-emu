@@ -1,5 +1,6 @@
 #ifndef BEMU_H
-    #define BEMU_H 1
+#define BEMU_H 1
+
 #include <inttypes.h>
 
 #include "MC14500.h"
@@ -9,26 +10,6 @@
 #define PATCH "0"
 #define VERSION  MAJOR "." MINOR "." PATCH
 
-enum pinActions {NONE,JUMP,JSR,RET,JSRS,RETS,HLT,RES,};
-
-/**
- * @struct PIN_HANDLES
- * @brief This structure contains all User Pin Handler selectors and the User 
- *        Pin pointers.
- */
-struct PIN_HANDLES {
-	uint8_t pinSink;
-    uint8_t* jmpPinPtr;
-    uint8_t* rtnPinPtr;
-    uint8_t* flagFPinPtr;
-    uint8_t* flagOPinPtr;
-
-    uint8_t jmpPinHandler;
-    uint8_t rtnPinHandler;
-    uint8_t flagFPinHandler;
-    uint8_t flagOPinHandler;
-};
-
 /**
  * @struct OPTIONS
  * @brief This structure contains all the configuration parameters for a given
@@ -36,28 +17,35 @@ struct PIN_HANDLES {
  */
 struct OPTIONS {
 	char *filename;
+    int splitFile;
     uint32_t romSize;
-    uint8_t stackSize;
-    uint8_t stackDir;
-    uint8_t stackWidth;
 	uint8_t endianess;
 	uint8_t instructionWidth;
 	uint8_t addressWidth;
 	uint8_t instructionPosition;
 	uint8_t addressPosition;
-	int splitFile;
-	uint8_t wordWidth;
+    uint8_t wordWidth;
+
+    uint8_t stackSize;
+    uint8_t stackDir;
+    uint8_t stackWidth;
+
     uint16_t ioDeviceCount;
     uint16_t rrDeviceAddress;
     uint8_t bindResultsRegister;
-    struct PIN_HANDLES pinHandles;
+
     uint16_t pcInitAddress;
-    int printState;
+
+    uint8_t jmpPinHandler;
+    uint8_t rtnPinHandler;
+    uint8_t flagFPinHandler;
+    uint8_t flagOPinHandler;
 
     uint8_t enableDebugger;
-    int stepMode;
-};
+    uint8_t stepMode;
 
+    int printState;
+};
 
 int run(struct OPTIONS* sOptions);
 
