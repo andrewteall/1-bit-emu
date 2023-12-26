@@ -1,140 +1,120 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "bemu.h"
+#include "debugger.h"
+#include "IODevice.h"
 #include "MC14500.h"
-#include "MCUtils.h"
 #include "MCSystem.h"
-#include "../../ulog/include/ulog.h"
+#include "ulog.h"
+#include "utils.h"
+
+const char* pinActionsStrings[] = {"NONE","JUMP","JSR","RET","JSRS","RETS","HLT","RES","NULL"};
 
 
+int run(struct OPTIONS* sOptions){
+	int error = 0;
+	/*********************************************************************/
+	/********************** Setup Program Counter ************************/
+	// Setup Program Counter 
+	uint16_t pc = sOptions->pcInitAddress-sOptions->wordWidth;
+	/*********************************************************************/
+
+	/*********************************************************************/
+	/*************************** Setup ICU *******************************/
+	struct MC14500 icu;
+	initICU(&icu);
+	setPinHandlers(&sOptions->pinHandles, &icu.jmpPin, &icu.rtnPin, \
+											&icu.flagOPin,&icu.flagFPin);
+	/*********************************************************************/
+
+	/*********************************************************************/
+	/*************************** Setup ROM *******************************/
+	// Define the Read Only Memory to be used by the ICU
+	uint32_t programROM[sOptions->romSize];
+	// Program Rom
+	error += !error * programROMFromFile(programROM, sOptions->filename, sOptions->romSize);
+	
+	/*********************************************************************/
+
+	/*********************************************************************/
+	/************************* Setup Stack *******************************/
+	struct STACK stack;
+	uint32_t stackData[sOptions->stackSize];
+	initStack(&stack, stackData, sOptions->stackSize, sOptions->stackDir, sOptions->stackWidth);
+	/*********************************************************************/
+
+	/*********************************************************************/
+	/************************** Setup I/O ********************************/
+	// Array to store input and output devices and their addresses
+	struct IODevice deviceList[sOptions->ioDeviceCount];
+	initIODeviceList(deviceList,sOptions->ioDeviceCount);
+
+	if (sOptions->bindResultsRegister){
+		error += !error * \
+			bindResultRegisterPinToIOAddress(deviceList,sOptions->rrDeviceAddress,icu.resultsRegisterPin,sOptions->ioDeviceCount);
+	}
+	
+	// struct IODevice ioDeviceList[0xF];
+	// struct IODevice inputDeviceList[0xF];
+	// struct IODevice outputDeviceList[0xF];
+	/*********************************************************************/
+	
+	if(sOptions->enableDebugger && !error){
+	    error += !error * startDebugger(sOptions);
+	}
+
+	uint32_t address;
+	uint8_t instruction;
+	uint32_t programROMValue;
+	startICU(&icu);
+	while(icu.status == RUNNING && !error){
+		// Fetch - Clock Up
+		pc += getPCIncrement(&sOptions->pinHandles, sOptions->wordWidth); // 0 if we modify the PC outside of this line
+		programROMValue = readWordFromROM(programROM, pc, sOptions->wordWidth, sOptions->endianess);
+		address = decodeAddress(programROMValue, sOptions->wordWidth, sOptions->instructionWidth, sOptions->instructionPosition);
+		instruction = decodeInstruction(programROMValue, sOptions->wordWidth, sOptions->instructionWidth, sOptions->instructionPosition);
+		// icu "fetch"
+		fetch(&icu, instruction);
+			
+		// Execute - Clock Down
+		// Latch device at address to Data Pin
+		latchIODeviceValueToDataPin(deviceList,address,&icu.dataPin,sOptions->ioDeviceCount);
+		// icu "execute"
+		execute(&icu);
+		// Latch Data Pin out to device
+		latchDataPinToIODevice(deviceList,address,&icu.dataPin,icu.writePin,sOptions->ioDeviceCount);
+		
+		if(sOptions->enableDebugger){
+			drawScreen(sOptions,pc, address, &icu,deviceList,stack.data,&stack.sp,programROM);
+		} else if(sOptions->printState){
+			printSystemInfo(pc, address, &icu);
+		}
+		
+		// User Defined Pin Handling
+		error += !error * pinHandler(&icu, &stack, &pc, address, &sOptions->pinHandles);
+
+		// (pc >= sOptions->romSize) ? pc = 0 : 0; 
+		pc *= !(pc >= sOptions->romSize); // Reset PC if we overflow the "ROM"
+	}
+
+	if(sOptions->enableDebugger){
+	    stopDebugger(error);
+	}
+	
+	return error;
+}
+
 /*****************************************************************************/
-/********************************** Utils ************************************/
+/***************************** Program Admin *********************************/
 /*****************************************************************************/
-const char* mnenomicStrings4[] = { "NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF"};
-const char* pinActionsStrings3[] = {"NONE","JUMP","JSR","RET","JSRS","RETS","HLT","RES","NULL"};
-/**
- * @brief Prints System Program Counter and current Address as well as Register
- * 		  and Pin information of the ICU. 
- * @param pc Current Program Counter value.
- * @param address Current operating address.
- * @param icu A pointer to a MC14500 struct to obtain information.
- */
 void printSystemInfo(uint16_t pc, uint32_t address, struct MC14500* icu){
 	printf("PC = 0x%02x  Inst = %4s(0x%02x)  Addr = 0x%02x  LU = %i  RR = %i  IEN/OEN = %i/%i  " \
 			"Write: %i  Data: %i  Skip Next: %i  JROF: %i%i%i%i\n",
-			pc,mnenomicStrings4[icu->instruction],icu->instruction,address,icu->logicUnit,icu->resultsRegister,icu->ienRegister, \
+			pc,mnenomicStrings[icu->instruction],icu->instruction,address,icu->logicUnit,icu->resultsRegister,icu->ienRegister, \
 			icu->oenRegister, icu->writePin,icu->dataPin,icu->skipRegister,icu->jmpPin,icu->rtnPin,icu->flagOPin,icu->flagFPin);
 }
-
-/**
- * @brief Rounds a float up to the nearest whole number.
- * @param floatNumber The number to round up.
- * @return int Number that has been rounded up.
- */
-int roundUp(float floatNumber){
-	int intNumber = (int)floatNumber;
-	if(intNumber < floatNumber){
-		intNumber++;
-	}
-	return intNumber;
-}
-
-/**
- * @brief Performs exponentiation.
- * @param base The base of the exponential to calculate.
- * @param power The exponent of the exponential to calculate.
- * @return long The result of the exponentiation.
- */
-long expo(int base, int power){
-	int result = base;
-	if (power == 0){
-		result = 1;
-	} else {
-		for (int i = 1; i < power; i++){
-			result *= base;
-		}
-	}
-    return result;
-}
-
-/**
- * @brief Converts a number string to an integer.
- * @param numStr The String to parse into and integer.
- * @return int The integer value of the string. -1 if Failure.
- */
-int str2num(char *numStr){
-	int num = 0;
-	int num_size = 0;
-	for (int i=strlen(numStr)-1,j=0;i>=0;i--){
-		if ((numStr[0] == '0' && (numStr[1] == 'x' || numStr[1] == 'X')) || numStr[0] == '$'){ 
-			// convert hexidecimal number
-			int limit = 2;
-			if(numStr[0] == '$'){
-				limit = 1;
-			}
-			if(!(i < limit) ){
-				if ((numStr[i] >= '0' && numStr[i] <= '9') || (numStr[i] >= 'A' && numStr[i] <= 'F') \
-					|| (numStr[i] >= 'a' && numStr[i] <= 'f') ){
-					if (j < 8){
-						if (numStr[i] >= 'A' && numStr[i] <= 'F') {
-							num += (numStr[i]-0x37)*(expo(16 , j++));
-						} else if (numStr[i] >= 'a' && numStr[i] <= 'f'){
-							num += (numStr[i]-0x57)*(expo(16 , j++));
-						} else {
-							num += (numStr[i]-0x30)*(expo(16 , j++));
-						}
-					} else {
-						ulog(ERROR,"Number out of Range");
-						num = -1;
-						i = -1;
-					}
-				} else {
-					ulog(ERROR,"Not a valid hexidecimal number");
-					num = -1;
-					i = -1;
-				}
-			}
-		}else if ((numStr[0] == '0' && (numStr[1] == 'b' || numStr[1] == 'B')) || numStr[0] == '%'){
-			int limit = 2;
-			if(numStr[0] == '%'){
-				limit = 1;
-			}
-
-			if(!(i < limit) ){
-				if (num_size < 32){
-					num += (numStr[i]-48)*(1 << j++);
-					num_size++;
-				} else {
-					ulog(ERROR,"Number out of Range");
-					num = -1;
-					i = -1;
-				}
-			}
-		
-			
-		} else { 
-			// convert decimal number
-			if (numStr[i] >= '0' && numStr[i] <= '9'){
-				if (j < 11){
-					num += (numStr[i]-0x30)*(expo(10 , j++));
-				} else {
-					ulog(ERROR,"Number out of Range");
-					num = -1;
-					i = -1;
-				}
-			} else {
-				ulog(ERROR,"Not a valid decimal number");
-				num = -1;
-				i = -1;
-			}
-		}
-	}
-	return num;
-}
-
-/*****************************************************************************/
-/********************************* Parameters ********************************/
-/*****************************************************************************/
 
 int  setWordWidth(struct OPTIONS* sOptions){
 	float instructionWidth =(float)sOptions->instructionWidth;
@@ -172,10 +152,10 @@ int  setWordWidth(struct OPTIONS* sOptions){
 }
 
 void setDefaultOptions(struct OPTIONS* sOptions){
-	sOptions->instructionWidth  	= 4;
-	sOptions->addressWidth     		= 4;
-	sOptions->instructionPosition   = 0;
-	sOptions->addressPosition    	= 4;
+    sOptions->instructionWidth      = 4;
+    sOptions->addressWidth          = 4;
+    sOptions->instructionPosition   = 0;
+    sOptions->addressPosition       = 4;
 
     sOptions->romSize               = 0xFF;
     // options->romSize                = expo(2,options->addressWidth);
@@ -183,29 +163,29 @@ void setDefaultOptions(struct OPTIONS* sOptions){
     sOptions->stackDir              = DOWN;
     sOptions->stackWidth            = 8;
 
-	sOptions->ioDeviceCount			= 0xF;
-	sOptions->bindResultsRegister	= 0;
-	sOptions->rrDeviceAddress		= 0;
+    sOptions->ioDeviceCount         = 0x0F;
+    sOptions->bindResultsRegister   = 0;
+    sOptions->rrDeviceAddress       = 0;
 
-	sOptions->endianess          	= LITTLE_ENDIAN;
-	sOptions->splitFile       		= 0;
+    sOptions->endianess             = LITTLE_ENDIAN;
+    sOptions->splitFile             = 0;
 
-	sOptions->enableDebugger		= 0;
+    sOptions->enableDebugger        = 0;
 
-	sOptions->pinHandles.pinSink = 0;
+    sOptions->pinHandles.pinSink = 0;
     sOptions->pinHandles.jmpPinPtr = &sOptions->pinHandles.pinSink;
     sOptions->pinHandles.rtnPinPtr = &sOptions->pinHandles.pinSink;
     sOptions->pinHandles.flagFPinPtr = &sOptions->pinHandles.pinSink;
     sOptions->pinHandles.flagOPinPtr = &sOptions->pinHandles.pinSink;
 
-	sOptions->pinHandles.jmpPinHandler = NONE;
+    sOptions->pinHandles.jmpPinHandler = NONE;
     sOptions->pinHandles.rtnPinHandler = NONE;
     sOptions->pinHandles.flagFPinHandler = NONE;
     sOptions->pinHandles.flagOPinHandler = NONE;
 
-	sOptions->pcInitAddress = 0;
-	sOptions->printState = 0;
-	sOptions->stepMode = 0;
+    sOptions->pcInitAddress = 0;
+    sOptions->printState = 0;
+    sOptions->stepMode = 0;
 
 }
 
@@ -319,26 +299,26 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 		 // FIXME: Checking second arg value
 		if (!strcmp(argv[i],"-m") || !strcmp(argv[i],"--map-pin")){
 			if (!strcmp(argv[i+1],"j") || !strcmp(argv[i+1],"J")){
-				for(int j=0; strcmp(pinActionsStrings3[j],"NULL");j++){
-					if(!strcmp(argv[i+2],pinActionsStrings3[j])){
+				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
+					if(!strcmp(argv[i+2],pinActionsStrings[j])){
 						 sOptions->pinHandles.jmpPinHandler = j;
 					}
 				}
 			} else if (!strcmp(argv[i+1],"r") || !strcmp(argv[i+1],"R")){
-				for(int j=0; strcmp(pinActionsStrings3[j],"NULL");j++){
-					if(!strcmp(argv[i+2],pinActionsStrings3[j])){
+				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
+					if(!strcmp(argv[i+2],pinActionsStrings[j])){
 						 sOptions->pinHandles.rtnPinHandler = j;
 					}
 				}
 			} else if (!strcmp(argv[i+1],"o") || !strcmp(argv[i+1],"O")){
-				for(int j=0; strcmp(pinActionsStrings3[j],"NULL");j++){
-					if(!strcmp(argv[i+2],pinActionsStrings3[j])){
+				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
+					if(!strcmp(argv[i+2],pinActionsStrings[j])){
 						 sOptions->pinHandles.flagOPinHandler = j;
 					}
 				}
 			} else if (!strcmp(argv[i+1],"f") || !strcmp(argv[i+1],"F")){
-				for(int j=0; strcmp(pinActionsStrings3[j],"NULL");j++){
-					if(!strcmp(argv[i+2],pinActionsStrings3[j])){
+				for(int j=0; strcmp(pinActionsStrings[j],"NULL");j++){
+					if(!strcmp(argv[i+2],pinActionsStrings[j])){
 						 sOptions->pinHandles.flagFPinHandler = j;
 					}
 				}
@@ -409,10 +389,15 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 	return setWordWidth(sOptions);
 }
 
-/**
- * @brief Prints the command line usage menu.
- */
+/* Prints version number */
+void printVersion(){
+	fprintf(stdout,"bemu v%s\n",VERSION);
+}
+
+/* Prints help message */
+// Add breakpoint for debug
 void printUsage(){
+	printVersion();
     printf("Usage: bemu [options] file\n");
     printf("Options:\n");
     printf("-ap N,         --address-position N         Sets the position of the address within the memory from the MSB. Default: 4\n");

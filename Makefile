@@ -18,6 +18,9 @@ ulog-release:
 prog: basm
 	./bin/basm ./basm/asm/prog.asm
 
+bemu-clean:
+	$(MAKE) -C bemu clean
+
 clean:
 	if [ -d $(LIB_DIR) ]; then rm -r $(LIB_DIR); fi
 	if [ -d $(BIN_DIR) ]; then rm -r $(BIN_DIR); fi

@@ -1,19 +1,15 @@
-#ifndef MCUTILS_H
-    #define MCUTILS_H 1
-
+#ifndef BEMU_H
+    #define BEMU_H 1
 #include <inttypes.h>
 
 #include "MC14500.h"
 
+#define MAJOR "0"
+#define MINOR "9"
+#define PATCH "0"
+#define VERSION  MAJOR "." MINOR "." PATCH
 
-#ifndef LITTLE_ENDIAN
-    #define LITTLE_ENDIAN 0
-#endif
-
-#ifndef BIG_ENDIAN
-    #define BIG_ENDIAN 1
-#endif
-
+enum pinActions {NONE,JUMP,JSR,RET,JSRS,RETS,HLT,RES,};
 
 /**
  * @struct PIN_HANDLES
@@ -40,17 +36,17 @@ struct PIN_HANDLES {
  */
 struct OPTIONS {
 	char *filename;
-    int romSize;
+    uint32_t romSize;
     uint8_t stackSize;
     uint8_t stackDir;
     uint8_t stackWidth;
-	int endianess;
-	int instructionWidth;
-	int addressWidth;
-	int instructionPosition;
-	int addressPosition;
+	uint8_t endianess;
+	uint8_t instructionWidth;
+	uint8_t addressWidth;
+	uint8_t instructionPosition;
+	uint8_t addressPosition;
 	int splitFile;
-	int wordWidth;
+	uint8_t wordWidth;
     uint16_t ioDeviceCount;
     uint16_t rrDeviceAddress;
     uint8_t bindResultsRegister;
@@ -63,7 +59,9 @@ struct OPTIONS {
 };
 
 
-    /**
+int run(struct OPTIONS* sOptions);
+
+/**
  * @brief Prints the command line usage menu.
  */
 void printUsage(void);
@@ -88,16 +86,4 @@ void printSystemInfo(uint16_t pc, uint32_t address, struct MC14500* icu);
  */
 int parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]);
 
-/**
- * @brief 
- * @param programROM A pointer to a uint32_t array to store the progam file 
- *        contents.
- * @param sOptions A pointer to an OPTIONS struct that contains all the 
- *        configuration parameters for the system.
- * @return uint8_t Return 0 for success or 1 if any part fails.
- */
-uint8_t programROMFromFile(uint32_t* programROM,struct OPTIONS* sOptions);
-
-
-long expo(int base, int power);
 #endif

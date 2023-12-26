@@ -1,12 +1,11 @@
 #include <ncurses.h>
 
 #include "MC14500.h"
-#include "MCUtils.h"
+#include "utils.h"
 #include "MCSystem.h"
 #include "IODevice.h"
 #include "../../ulog/include/ulog.h"
 
-const char* mnenomicStrings3[] = { "NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF"};
 const char* pinActionsStrings4[] = {"NONE","JUMP","JSR","RET","JSRS","RETS","HLT","RES","NULL"};
 
 int startDebugger(struct OPTIONS* sOptions){
@@ -85,7 +84,7 @@ void checkForUserKeyPress(struct OPTIONS* sOptions,uint16_t pc, uint32_t address
     }
 }
 
-void printStack(struct OPTIONS* sOptions,uint8_t xpos,uint8_t ypos,uint32_t* stack, uint8_t* sp){
+void printStack(struct OPTIONS* sOptions,uint8_t xpos,uint8_t ypos,uint32_t* stack, uint32_t* sp){
     // -> 0xNN 0xNNNN
     // 11 x 7
     int viewContext = *sp;
@@ -123,7 +122,7 @@ void clearLogMessage(){
 }
 
 void drawScreen(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct MC14500* icu,struct IODevice* deviceList, \
-                    uint32_t* stack, uint8_t* sp,  uint32_t* programROM){
+                    uint32_t* stack, uint32_t* sp,  uint32_t* programROM){
     move(0,0);
     printw("-------------------------------| Bemu Debugger  |-------------------------------\n");
     move(1,0);
@@ -159,7 +158,7 @@ void drawScreen(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct M
     printw("=====================================================\n");
     printw("PC: 0x%02x  Inst: %4s(0x%02x)  Addr: 0x%02x    SP: 0x%02x\n\nLU: %i     RR: %i          IEN/OEN = %i/%i " \
 					"   Write: %i\n\nData: %i   Skip Next: %i      JROF: %i%i%i%i    Map: %s\n",
-                    pc,mnenomicStrings3[icu->instruction],icu->instruction,address,*sp, icu->logicUnit,icu->resultsRegister, \
+                    pc,mnenomicStrings[icu->instruction],icu->instruction,address,*sp, icu->logicUnit,icu->resultsRegister, \
                     icu->ienRegister,icu->oenRegister,icu->writePin,icu->dataPin,icu->skipRegister,icu->jmpPin,icu->rtnPin, \
                     icu->flagOPin,icu->flagFPin, pinActionsStrings4[selectPinAndHandler(icu,&sOptions->pinHandles)]);
 
@@ -194,16 +193,16 @@ void drawScreen(struct OPTIONS* sOptions,uint16_t pc, uint32_t address, struct M
     int idx = 0;
 
     for(int i = 0; i < 19;i++){
-        uint32_t programROMValue = readWordFromROM(programROM,idx,sOptions);
-        uint32_t romAddress = decodeAddress(programROMValue,sOptions);
-        uint32_t  instruction = decodeInstruction(programROMValue, sOptions);
+        uint32_t programROMValue = readWordFromROM(programROM,idx,sOptions->wordWidth, sOptions->endianess);
+        uint32_t romAddress = decodeAddress(programROMValue, sOptions->wordWidth, sOptions->instructionWidth, sOptions->instructionPosition);
+        uint32_t  instruction = decodeInstruction(programROMValue, sOptions->wordWidth, sOptions->instructionWidth, sOptions->instructionPosition);
          mvprintw(execY,execX," ");
         if(pc == idx){
             attrset(COLOR_PAIR(1));
-            printw("%4s %4x",mnenomicStrings3[instruction],romAddress);
+            printw("%4s %4x",mnenomicStrings[instruction],romAddress);
             attroff(COLOR_PAIR(1));
         }else{
-            printw("%4s %4x",mnenomicStrings3[instruction],romAddress);
+            printw("%4s %4x",mnenomicStrings[instruction],romAddress);
         }
         idx += sOptions->wordWidth;
         execY++;
