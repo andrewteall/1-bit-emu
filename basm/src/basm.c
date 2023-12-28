@@ -345,8 +345,14 @@ int parseCommandLine(struct OPTIONS* sOptions,int argc, char* argv[]){
 	return 0;
 }
 
+/* Prints version number */
+void printVersion(){
+	fprintf(stdout,"bemu v%s\n",VERSION);
+}
+
 /* Prints help message */
 void printHelp(){
+	printVersion();
     printf("Usage: basm [options] file\n");
     printf("Options:\n");
     printf(" -a N,         --align N                    Align or pad the binary with 0 to a specified size N.\n");

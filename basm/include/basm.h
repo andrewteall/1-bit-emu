@@ -1,6 +1,11 @@
 #ifndef BASM_H
 #define BASM_H 1
 
+#define MAJOR "0"
+#define MINOR "9"
+#define PATCH "0"
+#define VERSION  MAJOR "." MINOR "." PATCH
+
 #ifndef LITTLE_ENDIAN
 	#define LITTLE_ENDIAN 0
 #endif
