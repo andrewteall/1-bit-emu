@@ -347,7 +347,7 @@ int parseCommandLine(struct OPTIONS* sOptions,int argc, char* argv[]){
 
 /* Prints version number */
 void printVersion(){
-	fprintf(stdout,"bemu v%s\n",VERSION);
+	fprintf(stdout,"basm v%s\n",VERSION);
 }
 
 /* Prints help message */
