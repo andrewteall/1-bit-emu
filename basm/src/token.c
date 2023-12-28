@@ -13,6 +13,8 @@ const char *tokenTypeStrings[] = {  "MNENOMIC", \
 									"NUMBER", \
 									"NEWLINE", \
 									"LABEL_MOD", \
+									"WHITESPACE", \
+									"COMMENT", \
 									"LABEL"};
 
 void printTokens(struct TOKEN_LIST* tokenList){
