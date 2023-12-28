@@ -1,4 +1,5 @@
 #include <ncurses.h>
+#include <stdint.h>
 
 #include "bemu.h"
 #include "debugger.h"

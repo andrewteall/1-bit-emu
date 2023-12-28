@@ -1,5 +1,5 @@
-#include <inttypes.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #include "MCSystem.h"
@@ -134,21 +134,6 @@ void clearSignals(struct SIGNALS* signals){
 	signals->resetSignal = 0;
 }
 
-// void setPinHandlers(struct PIN_HANDLES* pinHandles, uint8_t* jmpPin, uint8_t* rtnPin, uint8_t* flagOPin, uint8_t* flagFPin){
-//     if(pinHandles->jmpPinHandler>0 && pinHandles->jmpPinHandler<6){
-// 		pinHandles->jmpPinPtr = jmpPin;
-// 	}
-// 	if(pinHandles->rtnPinHandler>0 && pinHandles->rtnPinHandler<6){
-// 		pinHandles->rtnPinPtr = rtnPin;
-// 	}
-// 	if(pinHandles->flagFPinHandler>0 && pinHandles->flagFPinHandler<6){
-// 		pinHandles->flagFPinPtr = flagFPin;
-// 	}
-// 	if(pinHandles->flagOPinHandler>0 && pinHandles->flagOPinHandler<6){
-// 		pinHandles->flagOPinPtr = flagOPin;
-// 	}
-// }
-
 /*****************************************************************************/
 /*********************************** ROM *************************************/
 /*****************************************************************************/
@@ -219,8 +204,3 @@ uint32_t decodeAddress(uint32_t programROMValue, uint8_t wordWidth, uint8_t addr
 uint8_t getPCIncrement(uint8_t jmpPin, uint8_t rtnPin, uint8_t flagFPin, uint8_t flagOPin, int wordWidth){
 	return (!(jmpPin)*!(rtnPin)*!(flagFPin)*!(flagOPin)) * wordWidth;
 }
-
-// uint8_t getPCIncrement(struct PIN_HANDLES* pinHandles, int wordWidth){
-// 	return (!(*pinHandles->jmpPinPtr)*!(*pinHandles->rtnPinPtr)*!(*pinHandles->flagFPinPtr)*!(*pinHandles->flagOPinPtr)) * wordWidth;
-// }
-

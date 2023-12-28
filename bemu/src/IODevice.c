@@ -1,4 +1,4 @@
-#include <inttypes.h>
+#include <stdint.h>
 
 #include "IODevice.h"
 #include "ulog.h"

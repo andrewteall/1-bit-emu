@@ -1,4 +1,4 @@
-#include <inttypes.h>
+#include <stdint.h>
 
 #include "MC14500.h"
 #include "ulog.h"
