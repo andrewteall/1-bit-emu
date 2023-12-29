@@ -11,7 +11,6 @@
 int assemble(struct OPTIONS* options, char* filename, char* binaryArr){
 	struct TOKEN_LIST tokenList;
 	struct TOKENIZER_CONFIG tokenizerConfig;
-	tokenizerConfig.maxFileDepth = options->maxFileDepth;
 
 	int numTokens = tokenizeFile(filename, &tokenList, &tokenizerConfig);
 	if(options->onlyTokenize){
@@ -123,7 +122,6 @@ void setDefaultOptions(struct OPTIONS* options){
 	options->endianess          	= LITTLE_ENDIAN;
 	options->splitFile       		= 0;
 	options->interlaceFile  		= 0;
-	options->maxFileDepth			= 10;
 
 	options->format					= 0;
 	options->onlyTokenize			= 0;
@@ -290,16 +288,6 @@ int parseCommandLine(struct OPTIONS* sOptions,int argc, char* argv[]){
 			ulog(INFO,"Splitting Output File");
 		}
 
-		// -m --max-include-depth
-		if (!strcmp(argv[i],"-m") || !strcmp(argv[i],"--max-include-depth")){
-			sOptions->maxFileDepth = str2num(argv[i+1]);
-			if ( sOptions->maxFileDepth == -1){
-				ulog(FATAL,"Unsupported Max Include Depth value. Must be a number.");
-				return 1;
-			}
-			ulog(INFO,"Setting Max Include Depth to %i",sOptions->maxFileDepth);
-		}
-
 		// -t --tokenize-only
 		if (!strcmp(argv[i],"-t") || !strcmp(argv[i],"--tokenize-only")){
 			sOptions->onlyTokenize = 1;
@@ -364,7 +352,6 @@ void printHelp(){
     printf("-ip N,         --instruction-position N     Sets the position of the instruction within the memory from the MSB. Default: 0\n");
     printf("-iw N,         --instruction-width N        Set the width in bits of the instruction. Default: 4\n");
     printf(" -l,           --lable-table                Print Label Table.\n");
-    printf(" -m N,         --max-include-depth N        Maximum depth of files that can be included. Default: 10\n");
     printf(" -o FILE,      --outfile FILE               Specify output file. Default: $file.bin\n");
     printf("               --print-parsed               Prints tokens after parsing.\n");
     printf(" -p,           --pretty-print               Pretty print binary file at completion.\n");

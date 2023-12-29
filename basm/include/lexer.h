@@ -14,8 +14,6 @@ struct FILE_TABLE {
 };
 
 struct TOKENIZER_CONFIG {
-	int includedFileDepth;
-	int maxFileDepth;
 	struct FILE_TABLE fileTable;
 };
 
