@@ -26,7 +26,7 @@ void printTokens(struct TOKEN_LIST* tokenList){
 	}
 }
 
-int addNewToken(struct TOKEN_LIST* tokenList, char* tokenStr, int type, char* filename, int* lineNumber){
+int addNewToken(struct TOKEN_LIST* tokenList, char* tokenStr, enum tokenType type, char* filename, int* lineNumber){
 	ulog(TRACE,"Adding token string: %s", tokenStr);
 	if(tokenList->numTokens == MAX_NUM_TOKENS){
 		ulog(ERROR,"Maximum number of tokens exceeded: %i in file %s:%i", tokenList->numTokens, filename, *lineNumber);
