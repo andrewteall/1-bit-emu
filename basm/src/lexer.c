@@ -26,10 +26,13 @@ int isDelimeter(int c){
 	return 0;
 }
 
-int containsMatch(const char* arrayToMatch[],char* tokenStr){
-	toUpperString(tokenStr);
-	for(int index = 0;strcmp("END",arrayToMatch[index]);index++){
-		if (!strcmp(tokenStr,arrayToMatch[index])){
+int containsMatch(const char* arrayToMatch[], char* tokenStr){
+	char tokenTmp[strlen(tokenStr)];
+	strcpy(tokenTmp,tokenStr);
+	toUpperString(tokenTmp);
+	
+	for(int index = 0; strcmp("END",arrayToMatch[index]); index++){
+		if(!strcmp(tokenTmp, arrayToMatch[index])){
 			return 1;
 		}
 	}
@@ -38,27 +41,24 @@ int containsMatch(const char* arrayToMatch[],char* tokenStr){
 
 int determineTokenType(char* tokenStr){
 	int tokenType;
-	char tokenTmp[strlen(tokenStr)];
-	strcpy(tokenTmp,tokenStr);
-	
+
 	if(*tokenStr == '\n' || *tokenStr == 255){
 		tokenType = NEWLINE;
-	} else if(containsMatch(whitespaceStrings,tokenStr)){
+	} else if(containsMatch(whitespaceStrings, tokenStr)){
 		tokenType = WHITESPACE;
-	} else if(containsMatch(mnenomicStrings,tokenStr)){
+	} else if(containsMatch(mnenomicStrings, tokenStr)){
 		tokenType = MNENOMIC;
-	} else if(containsMatch(assignmentStrings,tokenStr)){
+	} else if(containsMatch(assignmentStrings, tokenStr)){
 		tokenType = ASSIGNMENT;
-	} else if(containsMatch(includeStrings,tokenStr)){
+	} else if(containsMatch(includeStrings, tokenStr)){
 		tokenType = INCLUDE;
-	} else if(containsMatch(directiveStrings,tokenStr)){
+	} else if(containsMatch(directiveStrings, tokenStr)){
 		tokenType = DIRECTIVE;
 	} else if(str2num(tokenStr) != -1){
 		tokenType = NUMBER;
-	} else if(containsMatch(labelModStrings,tokenStr)){
+	} else if(containsMatch(labelModStrings, tokenStr)){
 		tokenType = LABEL_MOD;
 	} else {
-		strcpy(tokenStr,tokenTmp);
 		tokenType = LABEL;
 	} 
 
@@ -110,75 +110,73 @@ char* getIncludeFilename(struct TOKEN_LIST* tokenList){
 
 void printFileTable(struct FILE_TABLE* sFileTable){
 	printf("================================= File Table ===================================\n");
-	printf("| %s %28s %44s\n","Idx","Filename","Parent Idx");
-	for(int i=0; i<sFileTable->length; i++){
+	printf("| %s %28s %44s\n", "Idx", "Filename", "Parent Idx");
+	for(int i=0; i < sFileTable->length; i++){
 		printf("| %2i: %-65s %3i\n", i, sFileTable->table[i], sFileTable->parentIdx[i]);
 	}
 	printf("================================================================================\n\n");
 }
 
-int hasCircularFileInclude(struct FILE_TABLE* sFileTable){
-	int idx = sFileTable->parentIdx[sFileTable->length-1];
-	while(idx != -1){
-		if(!strcmp(sFileTable->table[sFileTable->length-1],sFileTable->table[idx])){
+int hasCircularFileInclude(struct FILE_TABLE* fileTable, int line){
+	int parentIdx = fileTable->parentIdx[fileTable->length-1];
+	while(parentIdx != -1){
+		if(!strcmp(fileTable->table[fileTable->length-1], fileTable->table[parentIdx])){
+			ulog(ERROR,"Circular Include in file: %s:%i", fileTable->table[fileTable->parentIdx[fileTable->length-1]], line);
 			return 1;
 		}
-		idx = sFileTable->parentIdx[idx];
+		parentIdx = fileTable->parentIdx[parentIdx];
 	}
 	return 0;
 }
 
-int setFullPathNameInTable(struct FILE_TABLE* fileTable, char* includedFile, int fileIdx){
-	char* sourceFullPathFilename = fileTable->table[fileTable->length];
+int setFullPathNameInTable(struct FILE_TABLE* fileTable, char* includeFileName, int fileIdx, int line){
+	char* includeFullPathBuffer = fileTable->table[fileTable->length];
 	if(fileTable->length == 0){
-		sourceFullPathFilename = realpath(includedFile,sourceFullPathFilename);
-		if(sourceFullPathFilename == NULL){
+		includeFullPathBuffer = realpath(includeFileName, includeFullPathBuffer);
+		if(includeFullPathBuffer == NULL){
 			return 1;
 		}
 	} else {
-		sourceFullPathFilename = realpath(fileTable->table[fileIdx-1], sourceFullPathFilename);
-		if(sourceFullPathFilename == NULL){
+		includeFullPathBuffer = realpath(fileTable->table[fileIdx-1], includeFullPathBuffer);
+		if(includeFullPathBuffer == NULL){
 			return 1;
 		}
 		do {
-			char* slashIndex = strrchr(sourceFullPathFilename, '/');
+			char* slashIndex = strrchr(includeFullPathBuffer, '/');
 			if(slashIndex == NULL){
 				return 1;
 			}
-			int length = slashIndex - sourceFullPathFilename + 1;
-			sourceFullPathFilename[length] = '\0';
+			includeFullPathBuffer[slashIndex - includeFullPathBuffer + 1] = '\0';
 
-			if(includedFile[0] == '.' && includedFile[1] == '.' && includedFile[2] == '/'){
-				sourceFullPathFilename[strlen(sourceFullPathFilename)-2] = '\0';
-				for(int i=0;i != strlen(includedFile)+1; i++){
-					includedFile[i] = includedFile[i+3];
-					includedFile[i+3] = '\0';
+			if(includeFileName[0] == '.' && includeFileName[1] == '.' && includeFileName[2] == '/'){
+				includeFullPathBuffer[strlen(includeFullPathBuffer)-2] = '\0';
+				for(int i=0;i != strlen(includeFileName)+1; i++){
+					includeFileName[i] = includeFileName[i+3];
+					includeFileName[i+3] = '\0';
 				}
 			}
-		} while(includedFile[0] == '.' && includedFile[1] == '.' && includedFile[2] == '/');
-		strcat(sourceFullPathFilename,includedFile);
+		} while(includeFileName[0] == '.' && includeFileName[1] == '.' && includeFileName[2] == '/');
+		strcat(includeFullPathBuffer, includeFileName);
 	}
 	
-	ulog(DEBUG,"Adding File to FileTable: %s at index %i",sourceFullPathFilename,fileTable->length);
+	ulog(DEBUG,"Adding File to FileTable: %s at index %i", includeFullPathBuffer, fileTable->length);
 	fileTable->parentIdx[fileTable->length] = fileIdx-1;
 	fileTable->length++;
-	includedFile = sourceFullPathFilename;
-	return 0;
+
+	return hasCircularFileInclude(fileTable, line);
 }
 
-int addFileToFileTable(struct FILE_TABLE* fileTable, char* includedFile, int line,int fileIdx){
+char* getLastFileParentFilename(struct FILE_TABLE* fileTable){
+	return fileTable->table[fileTable->parentIdx[fileTable->length]-1];
+}
+
+int addFileToFileTable(struct FILE_TABLE* fileTable, char* includedFile, int line, int fileIdx){
 	int error = 0;
-	if (fileTable->length == MAX_FILE_INCLUDES){
-		ulog(ERROR,"Too many includes: %i Last Include: %s:%i",MAX_FILE_INCLUDES, \
-						fileTable->table[fileTable->parentIdx[fileTable->length]-1],line);
+	if (fileTable->length >= MAX_FILE_INCLUDES){
+		ulog(ERROR,"Too many includes: %i Last Include: %s:%i", MAX_FILE_INCLUDES, getLastFileParentFilename(fileTable), line);
 		error = 1;
 	} else {
-		error = setFullPathNameInTable(fileTable, includedFile, fileIdx);
-
-		if(hasCircularFileInclude(fileTable) && !error){
-			ulog(ERROR,"Circular Include in file: %s:%i", fileTable->table[fileTable->parentIdx[fileTable->length-1]], line);
-			error = 1;
-		}
+		error = setFullPathNameInTable(fileTable, includedFile, fileIdx, line);
 	}
 	return error;
 }
@@ -264,7 +262,10 @@ int tokenizeFile(char* filename, struct TOKEN_LIST* tokenList, struct TOKENIZER_
 	tokenList->nextToken = tokenList->list;
 
 	// Add the first file to the filetable
-	addFileToFileTable(&tokenizerConfig->fileTable, filename, 0, 0);
+	if(addFileToFileTable(&tokenizerConfig->fileTable, filename, 0, 0)){
+		ulog(ERROR, "Cannot Add File to File Table: %s", filename);
+		return 1;
+	}
 	
 	ulog(INFO,"Starting Tokenizer");
 	tokenizer(tokenizerConfig, tokenList);

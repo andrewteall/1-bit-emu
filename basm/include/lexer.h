@@ -17,16 +17,20 @@ struct TOKENIZER_CONFIG {
 	struct FILE_TABLE fileTable;
 };
 
-void printFileTable(struct FILE_TABLE* sFileTable);
+/**
+ * @brief Prints the information in the file table
+ * @param fileTable The File Table to print
+*/
+void printFileTable(struct FILE_TABLE* fileTable);
 
 /**
- * Opens and Reads a file, filename, tokenizes all elements within, and 
+ * @brief Opens and Reads a file, filename, tokenizes all elements within, and 
  * stores the tokens in tokenList.
  * @param filename The filename to be tokenized.
  * @param tokenList Token_List struct to store tokens read from file.
  * @param tokenizerConfig A Pointer to the tokenizer configuration.
  * @returns int The number of tokens read from the file.
- **/
+ */
 int tokenizeFile(char* filename, struct TOKEN_LIST* tokenList, struct TOKENIZER_CONFIG* tokenizerConfig);
 
 
