@@ -29,6 +29,6 @@ struct TOKEN_LIST {
 
 void printTokens(struct TOKEN_LIST* tokenList);
 
-int addNewToken(struct TOKEN_LIST* tokenList, char* tokenStr, int type, char* filename, int lineNumber);
+int addNewToken(struct TOKEN_LIST* tokenList, char* tokenStr, int type, char* filename, int* lineNumber);
 
 #endif
