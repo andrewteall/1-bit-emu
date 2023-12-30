@@ -2,9 +2,9 @@
 #include <string.h>
 
 #include "parser.h"
-#include "utils.h"
 #include "token.h"
 #include "ulog.h"
+#include "utils.h"
 
 const char *mnenomicStrings2[] = {
 	"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","NULL"};
@@ -77,12 +77,48 @@ int getNextStatement(struct TOKEN** statement, struct TOKEN_LIST* tokenList, int
 	// Get Next Statement and Store in Buffer
 	int statementLength = 0;
 	while(tokenList->list[*tokenIdx].type != NEWLINE && statementLength < MAX_STATEMENT_LENGTH){
-		statement[statementLength++] = &tokenList->list[*tokenIdx]; 
+		if(tokenList->list[*tokenIdx].type != WHITESPACE){
+			statement[statementLength++] = &tokenList->list[*tokenIdx]; 
+		}
 		(*tokenIdx)++;
 	}
 	statement[statementLength] = &tokenList->list[*tokenIdx];
 
 	return *tokenIdx;
+}
+
+int parseTokens2(struct PARSER_CONFIG* parserConfig, struct TOKEN_LIST* tokenList){
+	int currentAddress = 0;
+	int currentAddressBits = 0;
+	int highestAddress = 0;
+	for (int i=0; i < tokenList->numTokens; i++){
+		switch (tokenList->list[i].type){
+		case MNENOMIC:
+			tokenList->list[i].numericValue = getMnenomicOpCode(tokenList->list[i].stringValue);
+			tokenList->list[i].address = currentAddress;
+			tokenList->list[i].size = parserConfig->instructionWidth;
+			currentAddressBits += parserConfig->instructionWidth;
+			currentAddress = (currentAddressBits / parserConfig->wordWidth);
+			break;
+		case NUMBER:
+			tokenList->list[i].numericValue = str2num(tokenList->list[i].stringValue);
+			tokenList->list[i].address = currentAddress;
+			tokenList->list[i].size = parserConfig->addressWidth;
+			currentAddressBits += parserConfig->addressWidth;
+			currentAddress = (currentAddressBits / parserConfig->wordWidth);
+			break;
+		
+		case INCLUDE:
+		case WHITESPACE:
+		case NEWLINE:
+		default:
+			break;
+		}
+		if(highestAddress < currentAddress){
+			highestAddress = currentAddress;
+		}
+	}
+	return highestAddress;
 }
 
 int parseTokens(struct PARSER_CONFIG* parserConfig, struct TOKEN_LIST* tokenList){
@@ -202,6 +238,10 @@ int parseTokens(struct PARSER_CONFIG* parserConfig, struct TOKEN_LIST* tokenList
 				int directiveValue = 0;
 				int subroutineID;
 				char* directiveString = statement[tokenIdx]->stringValue;
+				char tmpStr[strlen(directiveString)];
+				strcpy(tmpStr,directiveString);
+				toUpperString(tmpStr);
+
 
 				switch (statement[1]->type){
 				case LABEL:
@@ -216,12 +256,12 @@ int parseTokens(struct PARSER_CONFIG* parserConfig, struct TOKEN_LIST* tokenList
 					break;
 				case NEWLINE:
 					
-					if(!strcmp("SUB",directiveString) || !strcmp("SUBROUTINE",directiveString)){
+					if(!strcmp("SUB",tmpStr) || !strcmp("SUBROUTINE",tmpStr)){
 						inSubroutine = 1;
 						subroutineCounter++;
 					}
 					
-					if(!strcmp("END_S",directiveString) || !strcmp("END_SUBROUTINE",directiveString)){
+					if(!strcmp("END_S",tmpStr) || !strcmp("END_SUBROUTINE",tmpStr)){
 						inSubroutine = 0;
 					}
 
@@ -375,12 +415,15 @@ int processMnemonic(struct PARSER_CONFIG* parserConfig, struct TOKEN* token, int
 
 	currentAddress += parserConfig->wordWidth;
 	return currentAddress;
-
 }
 
 int processDirective(struct PARSER_CONFIG* parserConfig,struct TOKEN** statement, struct LABEL *labelTable, int* labelIdx, \
 						int tokenIdx, int currentAddress,int value,int passCounter){
-	if (!strcmp(statement[tokenIdx]->stringValue,"ORG")){
+	char tmpStr[strlen(statement[tokenIdx]->stringValue)];
+	strcpy(tmpStr,statement[tokenIdx]->stringValue);
+	toUpperString(tmpStr);
+	
+	if (!strcmp(tmpStr,"ORG")){
 		if(passCounter && checkOverflow(parserConfig, statement[tokenIdx], value, value)){
 			ulog(ERROR,"ORG value in %s:%i is out of specified address range", \
 									statement[tokenIdx]->filename,statement[tokenIdx]->lineNumber);
@@ -388,7 +431,7 @@ int processDirective(struct PARSER_CONFIG* parserConfig,struct TOKEN** statement
 		}
 		ulog(INFO,"Setting ORG to %i",value);
 		currentAddress = value;
-	} else if (!strcmp(statement[tokenIdx]->stringValue,"REMAP")){
+	} else if (!strcmp(tmpStr,"REMAP")){
 		char* labelName = statement[tokenIdx+2]->stringValue;
 		*labelIdx = addLabel(labelTable,labelName,value,*labelIdx,passCounter,statement[tokenIdx],1, 0);
 		ulog(INFO,"Remapping %s to %s",labelName, statement[tokenIdx+1]->stringValue);
@@ -400,19 +443,12 @@ int processDirective(struct PARSER_CONFIG* parserConfig,struct TOKEN** statement
 }
 
 
-/* Prints out the specified label table */
-void printLabelTable(struct LABEL *labelTable, int labelTableLen){
-	printf("========================== Label Table ===========================\n");
-	for(int i=0; i<labelTableLen; i++){
-		printf("|%18s : 0x%04x    isRemapped: %i  SubroutineID: %i\n",labelTable[i].name,labelTable[i].value, \
-										labelTable[i].isRemapped, labelTable[i].subroutineID);
-	}
-	printf("==================================================================\n\n");
-}
-
 int getMnenomicOpCode(char* mnemonicString){
+	char tmpStr[strlen(mnemonicString)];
+	strcpy(tmpStr,mnemonicString);
+	toUpperString(tmpStr);
 	for(int index = 0;index<16;index++){
-		if (!strcmp(mnemonicString,mnenomicStrings2[index])){
+		if (!strcmp(tmpStr,mnenomicStrings2[index])){
 			return index;
 		}
 	}
@@ -436,6 +472,15 @@ int getCountBitsInNum(unsigned int num){
 }
 
 
+/* Prints out the specified label table */
+void printLabelTable(struct LABEL *labelTable, int labelTableLen){
+	printf("========================== Label Table ===========================\n");
+	for(int i=0; i<labelTableLen; i++){
+		printf("|%18s : 0x%04x    isRemapped: %i  SubroutineID: %i\n",labelTable[i].name,labelTable[i].value, \
+										labelTable[i].isRemapped, labelTable[i].subroutineID);
+	}
+	printf("==================================================================\n\n");
+}
 
 int getLabelValue(struct LABEL *labelTable, int labelTableLen, char* labelName, int subroutineID){
 	int labelIdx = getLabelIdx(labelTable,labelTableLen,labelName,subroutineID);
