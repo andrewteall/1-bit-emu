@@ -7,7 +7,7 @@
 #include "ulog.h"
 #include "utils.h"
 
-const int delimeterList[] = {' ', '\t', '\n', '\r', EOF, ':', '=', '+', '-', '*', 0};
+const int delimeterList[] = {' ', '\t', '\n', '\r', EOF, ':', ';', '=', '+', '-', '*', 0};
 
 const char *mnenomicStrings[] = {
 			"NOPO","LD","LDC","AND","ANDC","OR","ORC","XNOR","STO","STOC","IEN","OEN","JMP","RTN","SKZ","NOPF","END"};
@@ -44,7 +44,9 @@ int determineTokenType(char* tokenStr){
 
 	if(*tokenStr == '\n' || *tokenStr == 255){
 		tokenType = NEWLINE;
-	} else if(containsMatch(whitespaceStrings, tokenStr)){
+	} else if(*tokenStr == ';'){
+		tokenType = COMMENT;
+	} else if(containsMatch(whitespaceStrings, tokenStr) || tokenStr[0] == ' '){
 		tokenType = WHITESPACE;
 	} else if(containsMatch(mnenomicStrings, tokenStr)){
 		tokenType = MNENOMIC;
@@ -184,6 +186,7 @@ int addFileToFileTable(struct FILE_TABLE* fileTable, char* includedFile, int lin
 int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN_LIST* tokenList){
 	int  error = 0;
 	int  commentFlag = 0;
+	int  whitespaceFlag = 0;
 	int  lineNumber = 1;
 
 	int  tokenStrBufferLength = 0;
@@ -192,7 +195,7 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN_LIST* token
 	int  fileIdx = tokenizerConfig->fileTable.length;
 	char* filename = tokenizerConfig->fileTable.table[fileIdx-1];
 
-	//open file
+	// Open file
 	ulog(DEBUG,"Opening File: %s",filename);
 	FILE* sourceFile = fopen(filename, "r");
 	if(sourceFile == NULL){
@@ -209,46 +212,44 @@ int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN_LIST* token
 			c = fgetc(sourceFile);
 		}
 
-		// Turn the comment flag on if c is a ';' or if the comment flag is
+		// Turn the comment flag on if prevC is a ';' or if the comment flag is
 		// already set. Turn the comment flag off if c is a newline or EOF.
-		commentFlag = (c != '\n' && c != EOF && (c == ';' || commentFlag ));
-		if(!commentFlag){
-			if((isDelimeter(c) || isDelimeter(tokenStrBuffer[0])) && tokenStrBufferLength){
-				// Add Token to TokenList
-				error = addNewToken(tokenList, tokenStrBuffer, determineTokenType(tokenStrBuffer), filename, &lineNumber);
+		commentFlag = (c != '\n' && c != EOF && (prevC == ';' || commentFlag ));
+		whitespaceFlag = (c == ' ' && prevC == ' ');
+		if((isDelimeter(c) || isDelimeter(tokenStrBuffer[0])) && !whitespaceFlag && !commentFlag && tokenStrBufferLength){
+			// Add Token to TokenList
+			error = addNewToken(tokenList, tokenStrBuffer, determineTokenType(tokenStrBuffer), filename, &lineNumber);
+			if(error){
+				break;
+			}
+
+			// Clear token string and index
+			memset(tokenStrBuffer,'\0',tokenStrBufferLength);
+			tokenStrBufferLength = 0;
+
+			if(isIncludeStatement(tokenList) && !error){
+				char* includedFilename = getIncludeFilename(tokenList);
+				error = addFileToFileTable(&tokenizerConfig->fileTable, includedFilename, lineNumber-1, fileIdx);
 				if(error){
 					break;
 				}
-
-				// Clear token string and index
-				memset(tokenStrBuffer,'\0',MAX_TOKEN_LENGTH);
-				tokenStrBufferLength = 0;
-
-				if(isIncludeStatement(tokenList) && !error){
-					char* includedFilename = getIncludeFilename(tokenList);
-					error = addFileToFileTable(&tokenizerConfig->fileTable, includedFilename, lineNumber-1, fileIdx);
-					if(error){
-						break;
-					}
-					
-					error = tokenizer(tokenizerConfig, tokenList);
-					if(error){
-						break;
-					}
+				
+				error = tokenizer(tokenizerConfig, tokenList);
+				if(error){
+					break;
 				}
 			}
-			
-			tokenStrBuffer[tokenStrBufferLength++] = c;
-			if(tokenStrBufferLength >= MAX_TOKEN_LENGTH){
-				ulog(ERROR,"Length of the Token String excedes its maximum length: %i in File %s:%i", \
-							tokenStrBufferLength, filename, lineNumber);	
-				error = 1;
-				break;
-			}
+		}
+		tokenStrBuffer[tokenStrBufferLength++] = c;
+		if(tokenStrBufferLength >= MAX_TOKEN_LENGTH){
+			ulog(ERROR,"Length of the Token String excedes its maximum length: %i in File %s:%i", \
+						tokenStrBufferLength, filename, lineNumber);	
+			error = 1;
+			break;
 		}
 	}
 	
-	//close file
+	// Close file
 	ulog(DEBUG,"Closing File: %s", filename);
 	fclose(sourceFile);
 	
