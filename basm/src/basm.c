@@ -8,11 +8,33 @@
 #include "utils.h"
 #include "ulog.h"
 
+int writeListingFile(char* filename, struct TOKEN_LIST* tokenList){
+	// Open file
+	ulog(DEBUG,"Opening File: %s",filename);
+	FILE* listingFile = fopen(filename, "w");
+	if(listingFile == NULL){
+		ulog(ERROR,"Error Opening File: %s",filename);
+		return 1;
+	}
+
+	for(int i=0; i<tokenList->numTokens-1; i++){
+		if(tokenList->list[i].stringValue[0] == 255){
+			fputs("\n", listingFile);
+		} else {
+			fputs(tokenList->list[i].stringValue, listingFile);
+		}
+	}
+
+	fclose(listingFile);
+	return 0;
+}
+
 int assemble(struct OPTIONS* options, char* filename, char* binaryArr){
 	struct TOKEN_LIST tokenList;
 	struct TOKENIZER_CONFIG tokenizerConfig;
 
 	int numTokens = tokenizeFile(filename, &tokenList, &tokenizerConfig);
+	
 	if(options->onlyTokenize){
 		printFileTable(&tokenizerConfig.fileTable);
 		printTokens(&tokenList);
@@ -53,7 +75,8 @@ int assemble(struct OPTIONS* options, char* filename, char* binaryArr){
 	}
 
 /*******************************************************************************************/
-
+	
+	writeListingFile("bin/test.asm.lst",&tokenList);
 	return binSize;
 }
 
@@ -106,7 +129,6 @@ void prettyPrintBytes(char* array, int size){
 		printf("\n");
 	}
 }
-
 
 /******************************************************************************/
 /******************************** Init & Help *********************************/
