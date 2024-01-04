@@ -17,7 +17,7 @@ const char *directiveStrings[] = {"ORG","REMAP","SUB", "END_S","SUBROUTINE","END
 const char *labelModStrings[] = {"+","-","*","END"};
 const char *whitespaceStrings[] = {" ",":","\t","\r","END"};
 
-int isDelimeter(int c){
+static int isDelimeter(int c){
 	for(int i=0; delimeterList[i] != 0;i++){
 		if(c == delimeterList[i]){
 			return 1;
@@ -26,7 +26,7 @@ int isDelimeter(int c){
 	return 0;
 }
 
-int containsMatch(const char* arrayToMatch[], char* tokenStr){
+static int containsMatch(const char* arrayToMatch[], char* tokenStr){
 	char tokenTmp[strlen(tokenStr)];
 	strcpy(tokenTmp,tokenStr);
 	toUpperString(tokenTmp);
@@ -39,7 +39,7 @@ int containsMatch(const char* arrayToMatch[], char* tokenStr){
 	return 0;
 }
 
-int determineTokenType(char* tokenStr){
+static int determineTokenType(char* tokenStr){
 	int tokenType;
 
 	if(*tokenStr == '\n' || *tokenStr == 255){
@@ -67,7 +67,7 @@ int determineTokenType(char* tokenStr){
 	return tokenType;
 }
 
-int isIncludeStatement(struct TOKEN_LIST* tokenList){
+static int isIncludeStatement(struct TOKEN_LIST* tokenList){
 	int idx = tokenList->numTokens-1;
 	if(tokenList->numTokens == 0 || tokenList->list[idx].type != NEWLINE){
 		return 0;
@@ -102,7 +102,7 @@ int isIncludeStatement(struct TOKEN_LIST* tokenList){
 	return 0;
 }
 
-char* getIncludeFilename(struct TOKEN_LIST* tokenList){
+static char* getIncludeFilename(struct TOKEN_LIST* tokenList){
 	int idx = tokenList->numTokens-1;
 	while(idx >= 0 && tokenList->list[idx].type != LABEL){
 		--idx;
@@ -110,16 +110,7 @@ char* getIncludeFilename(struct TOKEN_LIST* tokenList){
 	return tokenList->list[idx].stringValue;
 }
 
-void printFileTable(struct FILE_TABLE* sFileTable){
-	printf("================================= File Table ===================================\n");
-	printf("| %s %28s %44s\n", "Idx", "Filename", "Parent Idx");
-	for(int i=0; i < sFileTable->length; i++){
-		printf("| %2i: %-65s %3i\n", i, sFileTable->table[i], sFileTable->parentIdx[i]);
-	}
-	printf("================================================================================\n\n");
-}
-
-int hasCircularFileInclude(struct FILE_TABLE* fileTable, int line){
+static int hasCircularFileInclude(struct FILE_TABLE* fileTable, int line){
 	int parentIdx = fileTable->parentIdx[fileTable->length-1];
 	while(parentIdx != -1){
 		if(!strcmp(fileTable->table[fileTable->length-1], fileTable->table[parentIdx])){
@@ -131,7 +122,7 @@ int hasCircularFileInclude(struct FILE_TABLE* fileTable, int line){
 	return 0;
 }
 
-int setFullPathNameInTable(struct FILE_TABLE* fileTable, char* includeFileName, int fileIdx, int line){
+static int setFullPathNameInTable(struct FILE_TABLE* fileTable, char* includeFileName, int fileIdx, int line){
 	char* includeFullPathBuffer = fileTable->table[fileTable->length];
 	if(fileTable->length == 0){
 		includeFullPathBuffer = realpath(includeFileName, includeFullPathBuffer);
@@ -168,11 +159,11 @@ int setFullPathNameInTable(struct FILE_TABLE* fileTable, char* includeFileName, 
 	return hasCircularFileInclude(fileTable, line);
 }
 
-char* getLastFileParentFilename(struct FILE_TABLE* fileTable){
+static char* getLastFileParentFilename(struct FILE_TABLE* fileTable){
 	return fileTable->table[fileTable->parentIdx[fileTable->length]-1];
 }
 
-int addFileToFileTable(struct FILE_TABLE* fileTable, char* includedFile, int line, int fileIdx){
+static int addFileToFileTable(struct FILE_TABLE* fileTable, char* includedFile, int line, int fileIdx){
 	int error = 0;
 	if (fileTable->length >= MAX_FILE_INCLUDES){
 		ulog(ERROR,"Too many includes: %i Last Include: %s:%i", MAX_FILE_INCLUDES, getLastFileParentFilename(fileTable), line);
@@ -183,7 +174,7 @@ int addFileToFileTable(struct FILE_TABLE* fileTable, char* includedFile, int lin
 	return error;
 }
 
-int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN_LIST* tokenList){
+static int tokenizer(struct TOKENIZER_CONFIG* tokenizerConfig, struct TOKEN_LIST* tokenList){
 	int  error = 0;
 	int  commentFlag = 0;
 	int  whitespaceFlag = 0;
@@ -273,4 +264,13 @@ int tokenizeFile(char* filename, struct TOKEN_LIST* tokenList, struct TOKENIZER_
 	
 	ulog(INFO,"Generated %i Tokens", tokenList->numTokens);
 	return tokenList->numTokens;
+}
+
+void printFileTable(struct FILE_TABLE* sFileTable){
+	printf("================================= File Table ===================================\n");
+	printf("| %s %28s %44s\n", "Idx", "Filename", "Parent Idx");
+	for(int i=0; i < sFileTable->length; i++){
+		printf("| %2i: %-65s %3i\n", i, sFileTable->table[i], sFileTable->parentIdx[i]);
+	}
+	printf("================================================================================\n\n");
 }
